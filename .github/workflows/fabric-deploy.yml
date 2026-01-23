@@ -54,8 +54,10 @@ jobs:
           echo "Validating Python notebook syntax..."
           find "${{ env.REPOSITORY_DIRECTORY }}" -name "notebook-content.py" -type f | while read file; do
             echo "Checking: $file"
-            if ! python -m py_compile "$file" 2>&1 | grep -v "SyntaxError: invalid syntax" > /dev/null; then
-              # Notebooks have special comment syntax, so we do a softer check
+            if ! python -m py_compile "$file" > /dev/null 2>&1; then
+              echo "ERROR: Syntax error in notebook $file"
+              exit 1
+            else
               echo "Checked: $file"
             fi
           done
