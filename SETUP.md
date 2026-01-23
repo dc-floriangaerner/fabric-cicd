@@ -13,7 +13,7 @@ This guide walks you through setting up the CI/CD pipeline for your Fabric works
 
 ### Option A: Using Azure Portal
 
-1. Navigate to **Azure Active Directory** → **App registrations**
+1. Navigate to **Microsoft Entra ID** → **App registrations**
 2. Click **New registration**
 3. Name: `fabric-cicd-deployment`
 4. Click **Register**
