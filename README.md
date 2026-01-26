@@ -28,8 +28,9 @@ Fabric Blueprint/
 ### Azure Setup
 
 1. **Azure Service Principal** with permissions:
-   - Fabric Workspace Admin or Contributor
-   - Azure subscription access
+   - Microsoft Entra ID (Azure AD) authentication
+   - Fabric Workspace Admin or Contributor permissions
+   - **Note**: No Azure subscription access required
 
 2. **Microsoft Fabric Workspaces**:
    - `[D] Fabric Blueprint` - Development environment
@@ -42,7 +43,6 @@ Configure the following **GitHub Secrets** in your repository:
 - `AZURE_CLIENT_ID` - Service Principal Client ID
 - `AZURE_CLIENT_SECRET` - Service Principal Secret
 - `AZURE_TENANT_ID` - Azure AD Tenant ID
-- `AZURE_SUBSCRIPTION_ID` - Azure Subscription ID
 
 **To add secrets**: Go to repository Settings → Secrets and variables → Actions → New repository secret
 
@@ -146,7 +146,7 @@ graph LR
 
 For each environment (Dev/Test/Prod):
 
-1. **Authenticate** to Azure using Service Principal
+1. **Authenticate** to Microsoft Entra ID using Service Principal (ClientSecretCredential)
 2. **Transform IDs** based on `parameter.yml` configuration
 3. **Deploy items** using `fabric-cicd` library
 4. **Clean up orphans** - remove items not in repository
@@ -200,8 +200,9 @@ item-name.ItemType/
 ### Common Issues
 
 **Deployment fails with authentication error**
-- Verify GitHub secrets are correctly configured
-- Check Service Principal has Fabric workspace permissions
+- Verify GitHub secrets are correctly configured (CLIENT_ID, CLIENT_SECRET, TENANT_ID)
+- Check Service Principal has Fabric workspace permissions (Admin or Contributor)
+- Ensure Service Principal is registered in correct Azure AD tenant
 
 **ID transformation not working**
 - Ensure `parameter.yml` has correct Dev workspace IDs

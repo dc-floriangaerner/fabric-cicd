@@ -24,13 +24,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install fabric-cicd azure-identity
 
-      - name: Azure CLI Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
       - name: Deploy to Dev Workspace
         run: |
           python scripts/deploy-to-fabric.py \
@@ -38,4 +31,7 @@ jobs:
             --environment dev \
             --workspace_name "${{ vars.WORKSPACE_NAME_DEV }}"
         env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           ACTIONS_RUNNER_DEBUG: ${{ secrets.ACTIONS_RUNNER_DEBUG }}

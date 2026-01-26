@@ -5,9 +5,11 @@ This guide walks you through setting up the CI/CD pipeline for your Fabric works
 ## Prerequisites Checklist
 
 - [ ] Microsoft Fabric workspace access (Admin or Contributor)
-- [ ] Azure subscription with permissions to create Service Principal
+- [ ] Azure AD (Entra ID) tenant access to create Service Principal
 - [ ] GitHub repository with Actions enabled
 - [ ] Dev, Test, and Prod Fabric workspaces created
+
+> **Note**: Azure subscription access is NOT required. The Service Principal only needs Microsoft Entra ID authentication and Fabric workspace permissions.
 
 ## Step 1: Create Azure Service Principal
 
@@ -22,7 +24,8 @@ This guide walks you through setting up the CI/CD pipeline for your Fabric works
 7. Go to **Certificates & secrets** → **New client secret**
 8. Add description: `GitHub Actions`
 9. Copy the **secret value** (this is `AZURE_CLIENT_SECRET`)
-10. Note your **Subscription ID** from Azure portal home (this is `AZURE_SUBSCRIPTION_ID`)
+
+> **Important**: This Service Principal does NOT need any Azure subscription permissions. It only needs Microsoft Entra ID authentication and will be granted workspace-level permissions in Fabric.
 
 ### Option B: Using Azure CLI
 
@@ -30,8 +33,8 @@ This guide walks you through setting up the CI/CD pipeline for your Fabric works
 # Login to Azure
 az login
 
-# Create Service Principal
-az ad sp create-for-rbac --name "fabric-cicd-deployment" --role contributor --scopes /subscriptions/{subscription-id}
+# Create Service Principal (without subscription role assignment)
+az ad sp create-for-rbac --name "fabric-cicd-deployment" --skip-assignment
 
 # Output will show:
 # {
@@ -40,6 +43,8 @@ az ad sp create-for-rbac --name "fabric-cicd-deployment" --role contributor --sc
 #   "tenantId": "xxx"       # AZURE_TENANT_ID
 # }
 ```
+
+> **Note**: We use `--skip-assignment` because this Service Principal does not need subscription-level permissions. All required permissions are granted at the Fabric workspace level.
 
 ## Step 2: Grant Fabric Workspace Permissions
 
@@ -63,7 +68,8 @@ For **each workspace** (Dev, Test, Prod):
 | `AZURE_CLIENT_ID` | Service Principal Client ID | Azure AD App Registration |
 | `AZURE_CLIENT_SECRET` | Service Principal Secret | Azure AD App Registration → Certificates & secrets |
 | `AZURE_TENANT_ID` | Azure AD Tenant ID | Azure AD App Registration |
-| `AZURE_SUBSCRIPTION_ID` | Azure Subscription ID | Azure Portal → Subscriptions |
+
+> **Note**: `AZURE_SUBSCRIPTION_ID` is NOT required. Microsoft Fabric API operations only need Entra ID authentication and workspace permissions.
 
 ## Step 4: Configure GitHub Environments
 
@@ -205,12 +211,13 @@ This approach gives you full control over Test and Prod deployments while automa
 
 ### Authentication Failed
 
-**Error**: `DefaultAzureCredential failed to retrieve a token`
+**Error**: `ClientSecretCredential authentication failed` or `DefaultAzureCredential failed to retrieve a token`
 
 **Solution**:
-- Verify GitHub secrets are correct
-- Check Service Principal has Fabric workspace access
-- Ensure subscription ID is correct
+- Verify GitHub secrets are correct (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID)
+- Check Service Principal has Fabric workspace access (Admin or Contributor)
+- Ensure the Service Principal is created in the correct Azure AD tenant
+- Verify the client secret hasn't expired
 
 ### Workspace Not Found
 

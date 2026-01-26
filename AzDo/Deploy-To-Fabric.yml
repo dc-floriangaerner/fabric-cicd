@@ -21,7 +21,7 @@ stages:
           - task: AzureCLI@2
             displayName: "Deploy Fabric Workspace"
             inputs:
-              azureSubscription: "SPN00"
+              azureSubscription: "SPN00"  # Service Connection needs Entra ID auth only, no subscription permissions required
               scriptType: "ps"
               scriptLocation: "inlineScript"
               inlineScript: |

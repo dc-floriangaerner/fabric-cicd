@@ -1,4 +1,4 @@
-c# Copyright (c) Microsoft Corporation.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
 """Deploy workspace to Fabric via GitHub Actions"""
@@ -7,7 +7,7 @@ import argparse
 import os
 import sys
 
-from azure.identity import AzureCliCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from fabric_cicd import FabricWorkspace, change_log_level, publish_all_items, unpublish_all_orphan_items
 
 # Parse arguments from GitHub Actions workflow
@@ -35,8 +35,22 @@ print(f"Environment: {environment}")
 print(f"Repository directory: {repository_directory}")
 
 try:
-    # Use Azure CLI credential to authenticate
-    token_credential = AzureCliCredential()
+    # Use ClientSecretCredential for GitHub Actions or DefaultAzureCredential for local development
+    # GitHub Actions will provide these environment variables
+    client_id = os.getenv("AZURE_CLIENT_ID")
+    tenant_id = os.getenv("AZURE_TENANT_ID")
+    client_secret = os.getenv("AZURE_CLIENT_SECRET")
+    
+    if client_id and tenant_id and client_secret:
+        print("Using ClientSecretCredential for authentication")
+        token_credential = ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+    else:
+        print("Using DefaultAzureCredential for authentication (local development)")
+        token_credential = DefaultAzureCredential()
 
     # Initialize the FabricWorkspace object with the required parameters
     target_workspace = FabricWorkspace(
