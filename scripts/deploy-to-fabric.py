@@ -39,35 +39,46 @@ def get_workspace_folders(workspaces_dir: str) -> List[str]:
     return sorted(workspace_folders)
 
 
-def capture_workspace_state(workspace: FabricWorkspace) -> Dict:
-    """Capture the current state of a workspace for rollback purposes."""
+def record_workspace_deployment(workspace: FabricWorkspace) -> Dict:
+    """Record deployment attempt for a workspace for rollback tracking.
+    
+    Note: This is a simplified implementation that only records metadata.
+    A full implementation would capture complete item definitions for restoration.
+    """
     try:
-        # Store workspace item metadata for potential rollback
-        # This is a simplified version - in production, you'd capture full item definitions
+        # Store workspace metadata for rollback tracking
+        # In production, you would capture full item definitions here
         state = {
             "workspace_name": workspace.workspace_name,
-            "captured": True,
-            "message": "State captured successfully"
+            "recorded": True,
+            "message": "Deployment recorded successfully"
         }
-        print(f"  ✓ Captured state for workspace: {workspace.workspace_name}")
+        print(f"  ✓ Recorded deployment for workspace: {workspace.workspace_name}")
         return state
     except Exception as e:
-        print(f"  ⚠ Warning: Failed to capture state for {workspace.workspace_name}: {str(e)}")
-        return {"workspace_name": workspace.workspace_name, "captured": False}
+        print(f"  ⚠ Warning: Failed to record deployment for {workspace.workspace_name}: {str(e)}")
+        return {"workspace_name": workspace.workspace_name, "recorded": False}
 
 
 def rollback_workspace(workspace_state: Dict, token_credential) -> bool:
-    """Rollback a workspace to its captured state."""
+    """Rollback a workspace deployment.
+    
+    Note: This is a placeholder implementation that only logs the rollback intention.
+    A full implementation would restore items from captured state by:
+    1. Retrieving the original item definitions from workspace_state
+    2. Using fabric-cicd to republish those original items
+    3. Removing any items that were added during the failed deployment
+    """
     try:
         workspace_name = workspace_state.get("workspace_name")
-        if not workspace_state.get("captured"):
-            print(f"  ⚠ Skipping rollback for {workspace_name} - no state captured")
+        if not workspace_state.get("recorded"):
+            print(f"  ⚠ Skipping rollback for {workspace_name} - deployment not recorded")
             return True
         
         print(f"  → Rolling back workspace: {workspace_name}")
-        # In a full implementation, you would restore items from the captured state
+        # TODO: Implement actual rollback by restoring items from captured state
         # For now, we just log the rollback intention
-        print(f"  ✓ Rollback completed for: {workspace_name}")
+        print(f"  ⚠ Rollback logged for: {workspace_name} (actual restoration not implemented)")
         return True
     except Exception as e:
         print(f"  ✗ Rollback failed for {workspace_state.get('workspace_name')}: {str(e)}")
@@ -79,9 +90,22 @@ def deploy_workspace(
     workspaces_dir: str,
     environment: str,
     token_credential,
-    workspace_states: List[Dict]
+    workspace_states: List[Dict],
+    deployed_workspaces: List[str]
 ) -> bool:
-    """Deploy a single workspace and capture its state."""
+    """Deploy a single workspace and track its state.
+    
+    Args:
+        workspace_folder: Name of the workspace folder
+        workspaces_dir: Root directory containing workspace folders
+        environment: Target environment (dev/test/prod)
+        token_credential: Azure credential for authentication
+        workspace_states: List to append deployment state for rollback
+        deployed_workspaces: List to append successfully deployed workspace names
+        
+    Returns:
+        True if deployment succeeds, False otherwise
+    """
     try:
         # Construct workspace name with stage prefix
         stage_prefix = get_stage_prefix(environment)
@@ -107,8 +131,8 @@ def deploy_workspace(
         
         print(f"→ Workspace initialized: {workspace_name}")
         
-        # Capture state before deployment for rollback
-        state = capture_workspace_state(target_workspace)
+        # Record deployment attempt before actual deployment
+        state = record_workspace_deployment(target_workspace)
         workspace_states.append(state)
         
         # Publish all items defined in item_type_in_scope
@@ -120,6 +144,9 @@ def deploy_workspace(
         print(f"→ Cleaning up orphan items...")
         unpublish_all_orphan_items(target_workspace)
         print(f"  ✓ Orphan items removed successfully")
+        
+        # Mark deployment as successful
+        deployed_workspaces.append(workspace_folder)
         
         print(f"\n✓ Deployment to {workspace_name} completed successfully!\n")
         return True
@@ -202,12 +229,11 @@ def main():
                 workspaces_dir=workspaces_directory,
                 environment=environment,
                 token_credential=token_credential,
-                workspace_states=workspace_states
+                workspace_states=workspace_states,
+                deployed_workspaces=deployed_workspaces
             )
             
-            if success:
-                deployed_workspaces.append(workspace_folder)
-            else:
+            if not success:
                 failed_workspace = workspace_folder
                 break
         
@@ -219,10 +245,26 @@ def main():
             print(f"Failed workspace: {failed_workspace}")
             print(f"Rolling back {len(deployed_workspaces)} previously deployed workspace(s)...\n")
             
-            # Rollback in reverse order
+            # Build a mapping from workspace name to its recorded state
+            workspace_state_by_folder = {}
+            for i, state in enumerate(workspace_states):
+                # Extract folder name from workspace name by removing stage prefix
+                workspace_name = state.get("workspace_name", "")
+                stage_prefix = get_stage_prefix(environment)
+                if workspace_name.startswith(stage_prefix):
+                    folder_name = workspace_name[len(stage_prefix):]
+                    workspace_state_by_folder[folder_name] = state
+            
+            # Rollback only successfully deployed workspaces, in reverse deployment order
             rollback_success = True
-            for i, state in enumerate(reversed(workspace_states[:-1])):  # Exclude failed workspace
-                print(f"Rollback {i+1}/{len(workspace_states)-1}:")
+            for i, workspace_folder in enumerate(reversed(deployed_workspaces)):
+                print(f"Rollback {i+1}/{len(deployed_workspaces)}:")
+                state = workspace_state_by_folder.get(workspace_folder)
+                if not state:
+                    print(f"  ⚠ Warning: No recorded state available for workspace '{workspace_folder}'; skipping rollback for this workspace.")
+                    rollback_success = False
+                    continue
+                
                 if not rollback_workspace(state, token_credential):
                     rollback_success = False
             

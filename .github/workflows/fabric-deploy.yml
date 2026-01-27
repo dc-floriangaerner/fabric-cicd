@@ -37,6 +37,14 @@ jobs:
       - name: Detect changed workspaces
         id: detect
         run: |
+          # Check if workspaces directory exists
+          if [ ! -d "${{ env.WORKSPACES_DIRECTORY }}" ]; then
+            echo "Error: Workspaces directory '${{ env.WORKSPACES_DIRECTORY }}' does not exist." >&2
+            echo "all_workspaces=" >> "$GITHUB_OUTPUT"
+            echo "workspaces=" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          
           # Get all workspace folders
           all_workspaces=$(find "${{ env.WORKSPACES_DIRECTORY }}" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort | tr '\n' ',' | sed 's/,$//')
           echo "all_workspaces=$all_workspaces" >> $GITHUB_OUTPUT
@@ -81,7 +89,7 @@ jobs:
       - name: Validate JSON files
         run: |
           echo "Validating JSON files..."
-          find "${{ env.WORKSPACES_DIRECTORY }}" -name "*.json" -type f | while read file; do
+          find "${{ env.WORKSPACES_DIRECTORY }}" -name "*.json" -type f | while IFS= read -r file; do
             echo "Checking: $file"
             if ! python -m json.tool "$file" > /dev/null 2>&1; then
               echo "ERROR: Invalid JSON in $file"
@@ -93,7 +101,7 @@ jobs:
       - name: Validate Python notebooks
         run: |
           echo "Validating Python notebook syntax..."
-          find "${{ env.WORKSPACES_DIRECTORY }}" -name "notebook-content.py" -type f | while read file; do
+          find "${{ env.WORKSPACES_DIRECTORY }}" -name "notebook-content.py" -type f | while IFS= read -r file; do
             echo "Checking: $file"
             if ! python -m py_compile "$file" > /dev/null 2>&1; then
               echo "ERROR: Syntax error in notebook $file"
@@ -108,7 +116,7 @@ jobs:
         run: |
           echo "Checking for required metadata files..."
           # Check lakehouses have required files
-          find "${{ env.WORKSPACES_DIRECTORY }}" -type d -name "*.Lakehouse" | while read dir; do
+          find "${{ env.WORKSPACES_DIRECTORY }}" -type d -name "*.Lakehouse" | while IFS= read -r dir; do
             echo "Checking lakehouse: $dir"
             [ -f "$dir/lakehouse.metadata.json" ] || (echo "Missing lakehouse.metadata.json in $dir" && exit 1)
             [ -f "$dir/alm.settings.json" ] || (echo "Missing alm.settings.json in $dir" && exit 1)
@@ -118,7 +126,7 @@ jobs:
       - name: Validate workspace parameter.yml files
         run: |
           echo "Validating workspace parameter.yml files..."
-          find "${{ env.WORKSPACES_DIRECTORY }}" -mindepth 2 -maxdepth 2 -name "parameter.yml" -type f | while read file; do
+          find "${{ env.WORKSPACES_DIRECTORY }}" -mindepth 2 -maxdepth 2 -name "parameter.yml" -type f | while IFS= read -r file; do
             echo "Checking: $file"
             python -c "import yaml; yaml.safe_load(open('$file'))" || (echo "ERROR: Invalid YAML in $file" && exit 1)
           done
@@ -253,185 +261,3 @@ jobs:
           echo "- **Workspaces**: ${{ needs.detect-changes.outputs.workspaces }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: prod" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-
-jobs:
-  static-analysis:
-    name: Static Analysis
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Validate JSON files
-        run: |
-          echo "Validating JSON files..."
-          find "${{ env.REPOSITORY_DIRECTORY }}" -name "*.json" -type f | while read file; do
-            echo "Checking: $file"
-            if ! python -m json.tool "$file" > /dev/null 2>&1; then
-              echo "ERROR: Invalid JSON in $file"
-              exit 1
-            fi
-          done
-          echo "All JSON files are valid"
-
-      - name: Validate Python notebooks
-        run: |
-          echo "Validating Python notebook syntax..."
-          find "${{ env.REPOSITORY_DIRECTORY }}" -name "notebook-content.py" -type f | while read file; do
-            echo "Checking: $file"
-            if ! python -m py_compile "$file" > /dev/null 2>&1; then
-              echo "ERROR: Syntax error in notebook $file"
-              exit 1
-            else
-              echo "Checked: $file"
-            fi
-          done
-          echo "Notebook validation complete"
-
-      - name: Check required metadata files
-        run: |
-          echo "Checking for required metadata files..."
-          # Check lakehouses have required files
-          find "${{ env.REPOSITORY_DIRECTORY }}" -type d -name "*.Lakehouse" | while read dir; do
-            echo "Checking lakehouse: $dir"
-            [ -f "$dir/lakehouse.metadata.json" ] || (echo "Missing lakehouse.metadata.json in $dir" && exit 1)
-            [ -f "$dir/alm.settings.json" ] || (echo "Missing alm.settings.json in $dir" && exit 1)
-          done
-          echo "All required metadata files present"
-
-
-  deploy-dev:
-    name: Deploy to Dev
-    runs-on: ubuntu-latest
-    needs: [detect-changes, static-analysis]
-    if: |
-      needs.detect-changes.outputs.workspaces != '' &&
-      (github.event_name == 'push' || 
-       (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev'))
-    environment:
-      name: dev
-      url: https://app.fabric.microsoft.com
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install fabric-cicd azure-identity
-
-      - name: Deploy to Dev Workspaces
-        run: |
-          python -u scripts/deploy-to-fabric.py \
-            --workspaces_directory "${{ env.WORKSPACES_DIRECTORY }}" \
-            --environment "dev" \
-            --workspace_folders "${{ needs.detect-changes.outputs.workspaces }}"
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-
-      - name: Deployment Summary
-        if: always()
-        run: |
-          echo "### Deployment Summary - Dev" >> $GITHUB_STEP_SUMMARY
-          echo "- **Workspaces**: ${{ needs.detect-changes.outputs.workspaces }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-
-  deploy-test:
-    name: Deploy to Test
-    runs-on: ubuntu-latest
-    needs: [detect-changes, static-analysis]
-    if: |
-      needs.detect-changes.outputs.workspaces != '' &&
-      github.event_name == 'workflow_dispatch' && inputs.environment == 'test'
-    environment:
-      name: test
-      url: https://app.fabric.microsoft.com
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install fabric-cicd azure-identity
-
-      - name: Deploy to Test Workspaces
-        run: |
-          python -u scripts/deploy-to-fabric.py \
-            --workspaces_directory "${{ env.WORKSPACES_DIRECTORY }}" \
-            --environment "test" \
-            --workspace_folders "${{ needs.detect-changes.outputs.workspaces }}"
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-
-      - name: Deployment Summary
-        if: always()
-        run: |
-          echo "### Deployment Summary - Test" >> $GITHUB_STEP_SUMMARY
-          echo "- **Workspaces**: ${{ needs.detect-changes.outputs.workspaces }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: test" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-
-  deploy-prod:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [detect-changes, static-analysis]
-    if: |
-      needs.detect-changes.outputs.workspaces != '' &&
-      github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
-    environment:
-      name: production
-      url: https://app.fabric.microsoft.com
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install fabric-cicd azure-identity
-
-      - name: Deploy to Production Workspaces
-        run: |
-          python -u scripts/deploy-to-fabric.py \
-            --workspaces_directory "${{ env.WORKSPACES_DIRECTORY }}" \
-            --environment "prod" \
-            --workspace_folders "${{ needs.detect-changes.outputs.workspaces }}"
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-
-      - name: Deployment Summary
-        if: always()
-        run: |
-          echo "### Deployment Summary - Production" >> $GITHUB_STEP_SUMMARY
-          echo "- **Workspaces**: ${{ needs.detect-changes.outputs.workspaces }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: prod" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-
