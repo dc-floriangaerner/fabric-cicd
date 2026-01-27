@@ -2,9 +2,38 @@
 
 ## Project Overview
 
-This is a **reference architecture** for Microsoft Fabric CI/CD using a **medallion architecture** (Bronze → Silver → Gold) for data engineering. The codebase defines Fabric workspace items as code, enabling Git-based version control, collaboration, and automated deployment workflows.
+This is a **reference architecture** for Microsoft Fabric CI/CD supporting **multiple workspaces** from a single repository. Uses a **medallion architecture** (Bronze → Silver → Gold) for data engineering. The codebase defines Fabric workspace items as code, enabling Git-based version control, collaboration, and automated deployment workflows.
 
-**Key Purpose**: Serve as a company-wide template for Fabric projects following Microsoft best practices for lifecycle management.
+**Key Purpose**: Serve as a company-wide template for Fabric projects following Microsoft best practices for lifecycle management with multi-workspace support.
+
+## Multi-Workspace Architecture
+
+This repository supports deploying multiple Fabric workspaces from a single repository:
+
+```
+workspaces/
+├── Fabric Blueprint/
+│   ├── parameter.yml          # Workspace-specific configuration
+│   ├── 1_Bronze/
+│   ├── 2_Silver/
+│   ├── 3_Gold/
+│   └── 4_Analytics/
+├── Analytics Hub/
+│   ├── parameter.yml
+│   └── ...
+└── Data Engineering/
+    ├── parameter.yml
+    └── ...
+```
+
+**Workspace Naming**: Names are dynamically constructed with stage prefixes:
+- Dev: `[D] <folder-name>` (e.g., `[D] Fabric Blueprint`)
+- Test: `[T] <folder-name>` (e.g., `[T] Fabric Blueprint`)
+- Prod: `[P] <folder-name>` (e.g., `[P] Fabric Blueprint`)
+
+**Selective Deployment**: Only workspaces with changes in `workspaces/**` paths trigger automatic Dev deployments. Manual deployments deploy all workspaces.
+
+**Atomic Rollback**: If any workspace deployment fails, all previously deployed workspaces in that run are automatically rolled back.
 
 ## Git Integration & CI/CD Strategy
 
@@ -54,14 +83,17 @@ This architecture uses **Git-based deployments with Build environments** for con
 
 ### Best Practices for This Architecture
 
-- **Separate workspaces per stage**: Dev, Test, Prod workspaces with different capacities
+- **Multiple workspaces per repository**: Each workspace folder in `workspaces/` is a separate deployment target
+- **Separate workspaces per stage**: Dev, Test, Prod workspaces with different capacities for each workspace folder
+- **Dynamic workspace naming**: No GitHub variables needed - workspace names generated from folder names with stage prefixes
+- **Workspace-specific configuration**: Each workspace has its own `parameter.yml` file
 - **Parameterize everything**: All stage-specific configs (connections, lakehouse IDs, data sources) must be parameterizable
-- **Build scripts**: Maintain transformation scripts in repo for modifying item definitions
 - **Small, frequent merges to main**: Keep feature branches short-lived
-- **Commit related changes together**: Group changes that must deploy atomically
+- **Commit related changes together**: Group changes that must deploy atomically across workspaces
 - **Private development branches**: Each developer works in isolated branch/workspace
 - **Pull request workflow**: All changes to main require PR approval
-- **Configuration as code**: Store stage-specific configs (Dev/Test/Prod) in repo
+- **Selective deployment**: Only changed workspaces deploy automatically to Dev
+- **Atomic operations**: All workspace deployments succeed or all are rolled back
 
 ## Commands
 
@@ -73,24 +105,31 @@ pip install fabric-cicd azure-identity  # Install dependencies
 
 # Local Development
 python scripts/deploy-to-fabric.py \
-  --repository_directory . \
+  --workspaces_directory workspaces \
   --environment dev \
-  --workspace_name "[D] Fabric Blueprint"
+  --workspace_folders "Fabric Blueprint"
+
+# Deploy specific workspace
+python scripts/deploy-to-fabric.py \
+  --workspaces_directory workspaces \
+  --environment dev \
+  --workspace_folders "Fabric Blueprint,Analytics Hub"
 
 # Deployment Commands (via GitHub Actions)
-# Deploy to Dev: Automatic on merge to main
-# Deploy to Test: Manual workflow dispatch (type "deploy-test")
-# Deploy to Production: Manual workflow dispatch (type "deploy-production")
+# Deploy to Dev: Automatic on merge to main (changed workspaces only)
+# Deploy to Test: Manual workflow dispatch (select "test" environment)
+# Deploy to Production: Manual workflow dispatch (select "prod" environment)
 
 # Validation
-python -m json.tool "Fabric Blueprint/1_Bronze/lakehouse_bronze.Lakehouse/lakehouse.metadata.json"  # Validate JSON files
+python -m json.tool "workspaces/Fabric Blueprint/1_Bronze/lakehouse_bronze.Lakehouse/lakehouse.metadata.json"  # Validate JSON files
 ```
 
 ### Workflow Triggers
 
-- **Dev Environment**: Automatically deploys when PR is merged to `main`
-- **Test Environment**: Manual trigger via GitHub Actions (requires "deploy-test" confirmation)
-- **Production Environment**: Manual trigger via GitHub Actions (requires "deploy-production" confirmation)
+- **Dev Environment**: Automatically deploys when PR is merged to `main` with changes in `workspaces/**` paths (only changed workspaces)
+- **Test Environment**: Manual trigger via GitHub Actions (select "test" environment, deploys all workspaces)
+- **Production Environment**: Manual trigger via GitHub Actions (select "prod" environment, deploys all workspaces)
+- **Non-workspace changes**: Changes to `.github/`, `scripts/`, documentation do NOT trigger automatic deployment
 
 ## Fabric MCP Server Integration
 
@@ -416,7 +455,7 @@ find_replace:
 **❌ Do Not Edit:**
 - `.git/` - Git internal files
 - `.github/workflows/` - GitHub Actions workflows (unless explicitly requested)
-- `Fabric Blueprint/**/.platform` - Fabric platform-specific metadata files
+- `workspaces/**/.platform` - Fabric platform-specific metadata files
 - Any files with GUID-like IDs in their content (these are environment-specific)
 
 **❌ Do Not Remove:**
@@ -440,8 +479,8 @@ find_replace:
 
 **Always use:**
 - GitHub Secrets for sensitive values (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`)
-- GitHub Variables for non-sensitive configuration (`WORKSPACE_NAME_DEV`, `WORKSPACE_NAME_TEST`, `WORKSPACE_NAME_PROD`)
-- Environment-specific transformations via `parameter.yml` for IDs and endpoints
+- Environment-specific transformations via workspace `parameter.yml` files for IDs and endpoints
+- Dynamic workspace naming from folder names (no variables needed)
 
 ## Security Best Practices
 
@@ -498,10 +537,11 @@ Solution:
 **Issue: `Workspace not found` error**
 ```
 Solution:
-1. Check workspace name matches exactly (case-sensitive)
-2. Verify GitHub Variable WORKSPACE_NAME_* is correct
-3. Ensure Service Principal has access to workspace
-4. Confirm workspace is in the same tenant as Service Principal
+1. Check workspace name is generated correctly from folder name
+2. Verify stage prefix is correct: [D], [T], or [P] with space
+3. Ensure workspace folder has parameter.yml file
+4. Confirm workspace exists in Fabric portal
+5. Verify Service Principal has access to workspace
 ```
 
 **Issue: Item deployment fails with invalid JSON**
