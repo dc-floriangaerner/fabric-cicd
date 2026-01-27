@@ -30,7 +30,6 @@ Fabric Blueprint/
 1. **Azure Service Principal** with permissions:
    - Microsoft Entra ID (Azure AD) authentication
    - Fabric Workspace Admin or Contributor permissions
-   - **Note**: No Azure subscription access required
 
 2. **Microsoft Fabric Workspaces**:
    - `[D] Fabric Blueprint` - Development environment
