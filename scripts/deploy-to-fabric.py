@@ -63,10 +63,18 @@ def record_workspace_deployment(workspace: FabricWorkspace) -> Dict:
 def rollback_workspace(workspace_state: Dict, token_credential) -> bool:
     """Rollback a workspace deployment.
     
+    Args:
+        workspace_state: Dictionary containing workspace metadata and deployment state
+        token_credential: Azure credential for Fabric API authentication (will be needed
+                         for actual rollback implementation to restore items)
+    
+    Returns:
+        True if rollback succeeds (or is logged successfully), False otherwise
+    
     Note: This is a placeholder implementation that only logs the rollback intention.
     A full implementation would restore items from captured state by:
     1. Retrieving the original item definitions from workspace_state
-    2. Using fabric-cicd to republish those original items
+    2. Using token_credential with fabric-cicd to republish those original items
     3. Removing any items that were added during the failed deployment
     """
     try:
@@ -218,6 +226,10 @@ def main():
             sys.exit(1)
         
         # Track deployment state for rollback
+        # Note: workspace_states currently tracks deployment metadata only.
+        # For production use, record_workspace_deployment() should be enhanced to capture
+        # complete item definitions (notebooks, lakehouses, pipelines, etc.) that can be
+        # restored via rollback_workspace() if a subsequent deployment fails.
         workspace_states: List[Dict] = []
         deployed_workspaces: List[str] = []
         failed_workspace: Optional[str] = None
