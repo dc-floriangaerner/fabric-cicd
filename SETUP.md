@@ -154,21 +154,20 @@ git push origin feature/test-deployment
 ### Test Manual Deployment to Test
 
 1. After Dev deployment succeeds
-2. Go to **Actions** → **Deploy to Test**
+2. Go to **Actions** → **Deploy to Microsoft Fabric**
 3. Click **Run workflow**
-4. In the confirmation field, type: `deploy-test`
+4. Check the **"Deploy to Test environment"** checkbox
 5. Click **Run workflow** button
 6. Monitor the deployment in the Actions tab
 
 ### Test Manual Deployment to Production
 
 1. After Test deployment is verified
-2. Go to **Actions** → **Deploy to Production**
+2. Go to **Actions** → **Deploy to Microsoft Fabric**
 3. Click **Run workflow**
-4. In the confirmation field, type: `deploy-production`
-5. (Optional) Add deployment notes
-6. Click **Run workflow** button
-7. Monitor the deployment in the Actions tab
+4. Check the **"Deploy to Production environment"** checkbox
+5. Click **Run workflow** button
+6. Monitor the deployment in the Actions tab
 
 ## Step 9: Verify Deployment
 
@@ -194,8 +193,8 @@ git push origin feature/test-deployment
 | Environment | Trigger | Approval | When to Use |
 |------------|---------|----------|-------------|
 | **Dev** | Automatic on merge to `main` | None | After PR approval and merge |
-| **Test** | Manual workflow dispatch | Typed confirmation: `deploy-test` | After Dev deployment verified |
-| **Production** | Manual workflow dispatch | Typed confirmation: `deploy-production` | After Test deployment verified |
+| **Test** | Manual workflow dispatch | Check "Deploy to Test environment" | After Dev deployment verified |
+| **Production** | Manual workflow dispatch | Check "Deploy to Production environment" | After Test deployment verified |
 
 This approach gives you full control over Test and Prod deployments while automating Dev deployments for rapid iteration.
 

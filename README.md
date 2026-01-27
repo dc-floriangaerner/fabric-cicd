@@ -104,17 +104,16 @@ git push origin feature/my-feature
 After successful Dev deployment and manual verification:
 
 **Deploy to Test:**
-1. Go to **Actions** tab → **Deploy to Test**
+1. Go to **Actions** tab → **Deploy to Microsoft Fabric**
 2. Click **Run workflow**
-3. Type `deploy-test` in the confirmation field
+3. Check the **"Deploy to Test environment"** checkbox
 4. Click **Run workflow** button
 
 **Deploy to Production:**
-1. Go to **Actions** tab → **Deploy to Production**
+1. Go to **Actions** tab → **Deploy to Microsoft Fabric**
 2. Click **Run workflow**
-3. Type `deploy-production` in the confirmation field
-4. (Optional) Add deployment notes
-5. Click **Run workflow** button
+3. Check the **"Deploy to Production environment"** checkbox
+4. Click **Run workflow** button
 
 ## CI/CD Pipeline
 
@@ -124,13 +123,14 @@ After successful Dev deployment and manual verification:
 graph LR
     A[PR Merged to Main] --> B[Auto Deploy to Dev]
     B --> C{Verify Dev}
-    C -->|Success| D[Manual: Trigger Deploy to Test]
-    D --> E{Type: deploy-test}
-    E -->|Confirmed| F[Deploy to Test]
-    F --> G{Verify Test}
-    G -->|Success| H[Manual: Trigger Deploy to Prod]
-    H --> I{Type: deploy-production}
-    I -->|Confirmed| J[Deploy to Prod]
+    C -->|Success| D[Manual: Trigger Deploy to Microsoft Fabric]
+    D --> E{Select Environment}
+    E -->|Check Test| F[Deploy to Test]
+    E -->|Check Prod| G[Deploy to Prod]
+    F --> H{Verify Test}
+    H -->|Success| I[Manual: Trigger Deploy to Microsoft Fabric]
+    I --> J{Select Environment}
+    J -->|Check Prod| G
 ```
 
 ### Deployment Environments
@@ -138,8 +138,8 @@ graph LR
 | Environment | Trigger | Confirmation | Use Case |
 |-------------|---------|--------------|----------|
 | **Dev** | Auto on merge to `main` | None | Automatic deployment for rapid iteration |
-| **Test** | Manual workflow dispatch | Type `deploy-test` | After Dev verification |
-| **Production** | Manual workflow dispatch | Type `deploy-production` + notes | After Test verification |
+| **Test** | Manual workflow dispatch | Check "Deploy to Test environment" | After Dev verification |
+| **Production** | Manual workflow dispatch | Check "Deploy to Production environment" | After Test verification |
 
 ### Deployment Process
 
@@ -212,8 +212,8 @@ item-name.ItemType/
 - Verify item is in scope for deployment
 
 **Manual deployment not triggering**
-- Ensure you're using the correct workflow (Deploy to Test / Deploy to Production)
-- Verify you typed the exact confirmation string (`deploy-test` or `deploy-production`)
+- Ensure you're using the "Deploy to Microsoft Fabric" workflow
+- Verify you checked the appropriate environment checkbox (Test or Production)
 - Check GitHub Actions permissions are enabled
 
 ### Viewing Logs
