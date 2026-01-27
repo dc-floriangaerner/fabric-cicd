@@ -107,6 +107,10 @@ jobs:
             --workspace_name "${{ env.DEV_WORKSPACE_NAME }}" \
             --repository_directory "${{ env.REPOSITORY_DIRECTORY }}" \
             --environment "dev"
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Deployment Summary
         if: always()
@@ -138,17 +142,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install fabric-cicd azure-identity
 
-      - name: Azure CLI Login
-        uses: azure/login@v2
-        with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
-
       - name: Deploy to Test Workspace
         run: |
           python -u scripts/deploy-to-fabric.py \
             --workspace_name "${{ env.TEST_WORKSPACE_NAME }}" \
             --repository_directory "${{ env.REPOSITORY_DIRECTORY }}" \
             --environment "test"
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Deployment Summary
         if: always()
@@ -180,17 +187,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install fabric-cicd azure-identity
 
-      - name: Azure CLI Login
-        uses: azure/login@v2
-        with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
-
       - name: Deploy to Production Workspace
         run: |
           python -u scripts/deploy-to-fabric.py \
             --workspace_name "${{ env.PROD_WORKSPACE_NAME }}" \
             --repository_directory "${{ env.REPOSITORY_DIRECTORY }}" \
             --environment "prod"
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Deployment Summary
         if: always()
