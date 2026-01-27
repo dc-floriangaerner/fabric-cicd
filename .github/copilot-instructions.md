@@ -63,6 +63,35 @@ This architecture uses **Git-based deployments with Build environments** for con
 - **Pull request workflow**: All changes to main require PR approval
 - **Configuration as code**: Store stage-specific configs (Dev/Test/Prod) in repo
 
+## Commands
+
+### Common Development Commands
+
+```bash
+# Setup and Installation
+pip install fabric-cicd azure-identity  # Install dependencies
+
+# Local Development
+python scripts/deploy-to-fabric.py \
+  --repository_directory . \
+  --environment dev \
+  --workspace_name "[D] Fabric Blueprint"
+
+# Deployment Commands (via GitHub Actions)
+# Deploy to Dev: Automatic on merge to main
+# Deploy to Test: Manual workflow dispatch (type "deploy-test")
+# Deploy to Production: Manual workflow dispatch (type "deploy-production")
+
+# Validation
+python -m json.tool "Fabric Blueprint/1_Bronze/lakehouse_bronze.Lakehouse/lakehouse.metadata.json"  # Validate JSON files
+```
+
+### Workflow Triggers
+
+- **Dev Environment**: Automatically deploys when PR is merged to `main`
+- **Test Environment**: Manual trigger via GitHub Actions (requires "deploy-test" confirmation)
+- **Production Environment**: Manual trigger via GitHub Actions (requires "deploy-production" confirmation)
+
 ## Fabric MCP Server Integration
 
 **When working with Microsoft Fabric tasks, always prefer using the Fabric MCP server.**
@@ -268,3 +297,263 @@ Build scripts should handle:
     ├── transform-config.ps1   # Configuration transformation
     └── deploy-items.ps1       # Fabric API deployment
 ```
+
+## Testing Requirements
+
+### No Automated Tests Required
+
+This is a **reference architecture** project focused on demonstrating Fabric CI/CD patterns. It does not include automated tests for the following reasons:
+- Fabric item definitions are declarative (JSON/YAML configuration)
+- Notebooks contain example PySpark code for demonstration purposes
+- Deployment validation happens through the actual Fabric workspace deployment
+
+### Manual Validation Process
+
+After deployment, validate that:
+1. **Items are deployed**: Check target workspace in Fabric portal
+2. **Item types are correct**: Verify Lakehouses, Notebooks, Pipelines, Semantic Models
+3. **IDs are transformed**: Confirm lakehouse/workspace IDs match target environment
+4. **No deployment errors**: Review GitHub Actions logs for successful completion
+
+### Deployment Script Validation
+
+The `scripts/deploy-to-fabric.py` script can be validated locally:
+
+```bash
+# Dry-run validation (no actual deployment)
+python scripts/deploy-to-fabric.py --help
+
+# Validate parameter.yml syntax
+python -c "import yaml; yaml.safe_load(open('parameter.yml'))"
+```
+
+## Coding Conventions
+
+### Python Scripts
+
+- **Python Version**: 3.11+
+- **Style**: Follow PEP 8 conventions
+- **Type Hints**: Use type hints for function arguments and return values
+- **Error Handling**: Always catch specific exceptions, use sys.exit(1) for errors
+- **Logging**: Use print statements for GitHub Actions visibility
+
+**Example: Good Python Style**
+```python
+from typing import Optional
+from azure.identity import ClientSecretCredential
+
+def deploy_workspace(
+    workspace_name: str,
+    environment: str,
+    token_credential: ClientSecretCredential
+) -> bool:
+    """Deploy workspace items to Fabric.
+    
+    Args:
+        workspace_name: Name of the target Fabric workspace
+        environment: Target environment (dev/test/prod)
+        token_credential: Azure credential for authentication
+        
+    Returns:
+        True if deployment succeeds, False otherwise
+    """
+    try:
+        print(f"Starting deployment to {workspace_name}")
+        # deployment logic here
+        return True
+    except Exception as e:
+        print(f"ERROR: Deployment failed: {str(e)}")
+        return False
+```
+
+### Fabric Item Definitions
+
+- **JSON Formatting**: All JSON files must be valid and properly formatted
+- **METADATA Preservation**: Never modify `# METADATA` or `# CELL` comments in notebooks
+- **Naming Conventions**: Follow established prefixes (`cp_`, `nb_`, `lakehouse_`, `da_`)
+- **Layer Prefixes**: Use `br_`, `sl_`, `gd_` for Bronze, Silver, Gold layers
+
+**Example: Valid Notebook Structure**
+```python
+# METADATA ********************
+# META {
+# META   "kernel_info": {"name": "synapse_pyspark"},
+# META   "dependencies": {}
+# META }
+
+# CELL ********************
+# Import libraries
+from pyspark.sql import SparkSession
+
+# CELL ********************
+# Your transformation code here
+df = spark.read.format("delta").load("Tables/source_table")
+df_transformed = df.filter(df["status"] == "active")
+df_transformed.write.format("delta").mode("overwrite").save("Tables/target_table")
+```
+
+### YAML Configuration
+
+- **Indentation**: Use 2 spaces (not tabs)
+- **Comments**: Add descriptive comments for complex transformations
+- **Regex Patterns**: Escape special characters properly in `find_value` patterns
+
+**Example: Valid parameter.yml Entry**
+```yaml
+find_replace:
+  - find_value: 'database\s*=\s*Sql\.Database\s*\(\s*"([^"]+)"'
+    replace_value:
+      _ALL_: "$items.Lakehouse.lakehouse_silver.sqlendpoint"
+    is_regex: "true"
+    item_type: "SemanticModel"
+    description: "Replace SQL endpoint in semantic models"
+```
+
+## Prohibited Areas
+
+### Files and Directories That Should NEVER Be Modified
+
+**❌ Do Not Edit:**
+- `.git/` - Git internal files
+- `.github/workflows/` - GitHub Actions workflows (unless explicitly requested)
+- `Fabric Blueprint/**/.platform` - Fabric platform-specific metadata files
+- Any files with GUID-like IDs in their content (these are environment-specific)
+
+**❌ Do Not Remove:**
+- `alm.settings.json` files (required for lakehouse ALM behavior)
+- `.platform` files (required by Fabric for item type identification)
+- `shortcuts.metadata.json` files (even if empty, they declare shortcut configuration)
+
+**⚠️ Modify With Extreme Care:**
+- `parameter.yml` - Changes affect all environment deployments
+- `.github/copilot-instructions.md` - Repository-wide Copilot behavior
+- Notebook METADATA blocks - Breaking these makes notebooks unreadable in Fabric
+
+### Security-Sensitive Operations
+
+**Never commit:**
+- Azure Service Principal secrets or credentials
+- Fabric workspace IDs in plain text (use GitHub secrets/variables instead)
+- Personal Access Tokens (PATs)
+- Connection strings with embedded credentials
+- Any `.env` files with secrets
+
+**Always use:**
+- GitHub Secrets for sensitive values (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`)
+- GitHub Variables for non-sensitive configuration (`WORKSPACE_NAME_DEV`, `WORKSPACE_NAME_TEST`, `WORKSPACE_NAME_PROD`)
+- Environment-specific transformations via `parameter.yml` for IDs and endpoints
+
+## Security Best Practices
+
+### Authentication and Authorization
+
+1. **Service Principal Management**:
+   - Use dedicated Service Principal per environment (recommended)
+   - Or use single Service Principal with access to all workspaces (simpler)
+   - Rotate client secrets every 90 days
+   - Use least-privilege permissions (Workspace Contributor, not Admin unless needed)
+
+2. **GitHub Secrets Protection**:
+   - Never print secrets in logs (`echo ${{ secrets.AZURE_CLIENT_SECRET }}` is forbidden)
+   - Use `***` masking by storing values as GitHub Secrets
+   - Review GitHub Actions logs for accidental secret exposure
+
+3. **Fabric Workspace Security**:
+   - Use separate workspaces per environment (Dev, Test, Prod)
+   - Apply different Fabric capacities per environment
+   - Enable workspace audit logging
+   - Restrict workspace access to service principals and authorized users only
+
+### Code Security
+
+1. **Dependency Management**:
+   - Pin dependency versions in requirements.txt or workflow files
+   - Review `fabric-cicd` library updates for breaking changes
+   - Use `pip install --upgrade pip` before installing dependencies
+
+2. **Secrets in Code**:
+   - Never hardcode workspace IDs, connection strings, or credentials
+   - Use `${{ secrets.* }}` and `${{ vars.* }}` in workflows
+   - Use `parameter.yml` for ID transformations, not inline replacements
+
+3. **Deployment Safety**:
+   - Test deployments in Dev before Test/Prod
+   - Use manual approval for Test and Prod deployments
+   - Review orphan cleanup behavior (`unpublish_all_orphan_items`)
+   - Maintain deployment rollback capability (Git history)
+
+## Troubleshooting
+
+### Common Deployment Issues
+
+**Issue: `ClientSecretCredential authentication failed`**
+```
+Solution:
+1. Verify GitHub secrets are set correctly (CLIENT_ID, CLIENT_SECRET, TENANT_ID)
+2. Check Service Principal exists in correct Azure AD tenant
+3. Ensure client secret hasn't expired (max 2 years)
+4. Verify Service Principal has Fabric workspace access
+```
+
+**Issue: `Workspace not found` error**
+```
+Solution:
+1. Check workspace name matches exactly (case-sensitive)
+2. Verify GitHub Variable WORKSPACE_NAME_* is correct
+3. Ensure Service Principal has access to workspace
+4. Confirm workspace is in the same tenant as Service Principal
+```
+
+**Issue: Item deployment fails with invalid JSON**
+```
+Solution:
+1. Validate JSON syntax: python -m json.tool <file>.json
+2. Check for trailing commas in JSON files
+3. Verify METADATA blocks in notebooks are not corrupted
+4. Ensure no merge conflict markers remain in files
+```
+
+**Issue: IDs not transforming between environments**
+```
+Solution:
+1. Verify parameter.yml has correct Dev workspace IDs in find_value
+2. Check regex patterns are valid (use is_regex: "true")
+3. Confirm item_type matches the target item (e.g., "Notebook")
+4. Test regex at https://regex101.com/ with sample content
+```
+
+**Issue: Orphan items not removed**
+```
+Solution:
+1. Check if skip_orphan_cleanup is set in parameter.yml
+2. Verify item types are in scope for deployment
+3. Review deployment logs for orphan detection results
+4. Manually remove orphaned items if cleanup is disabled
+```
+
+### Debugging GitHub Actions
+
+**Enable Debug Logging:**
+1. Go to Settings → Secrets and variables → Actions
+2. Add secret: `ACTIONS_RUNNER_DEBUG` = `true`
+3. Re-run failed workflow
+4. Review expanded debug output in Actions logs
+
+**Check Deployment Status:**
+```bash
+# View most recent workflow runs
+gh run list --limit 5
+
+# View logs for specific run
+gh run view <run-id> --log
+
+# Re-run failed workflow
+gh run rerun <run-id>
+```
+
+### Getting Help
+
+- **Fabric API Issues**: [Microsoft Fabric Documentation](https://learn.microsoft.com/fabric/)
+- **fabric-cicd Library**: [PyPI Package](https://pypi.org/project/fabric-cicd/)
+- **GitHub Actions**: [GitHub Actions Documentation](https://docs.github.com/actions)
+- **Service Principal Setup**: [Azure AD Documentation](https://learn.microsoft.com/azure/active-directory/develop/howto-create-service-principal-portal)
