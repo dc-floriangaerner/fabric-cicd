@@ -1,5 +1,6 @@
 name: Deploy to Test
 
+# Manual deployment only - use fabric-deploy.yml for automated deployments
 on:
   workflow_dispatch:
     inputs:
