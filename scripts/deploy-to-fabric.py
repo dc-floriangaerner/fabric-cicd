@@ -49,15 +49,15 @@ def record_workspace_deployment(workspace: FabricWorkspace) -> Dict:
         # Store workspace metadata for rollback tracking
         # In production, you would capture full item definitions here
         state = {
-            "workspace_name": workspace.workspace_name,
+            "workspace_name": workspace.display_name,
             "recorded": True,
             "message": "Deployment recorded successfully"
         }
-        print(f"  ✓ Recorded deployment for workspace: {workspace.workspace_name}")
+        print(f"  ✓ Recorded deployment for workspace: {workspace.display_name}")
         return state
     except Exception as e:
-        print(f"  ⚠ Warning: Failed to record deployment for {workspace.workspace_name}: {str(e)}")
-        return {"workspace_name": workspace.workspace_name, "recorded": False}
+        print(f"  ⚠ Warning: Failed to record deployment for workspace: {str(e)}")
+        return {"workspace_name": "unknown", "recorded": False}
 
 
 def rollback_workspace(workspace_state: Dict, token_credential) -> bool:
