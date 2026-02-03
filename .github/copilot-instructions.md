@@ -241,6 +241,59 @@ Each Fabric item follows this pattern:
 - **Workspace limit**: Max 1,000 items per workspace
 - **Version control**: Always commit related changes together for atomic deployments
 
+### Making Changes to This Repository
+
+**REQUIRED GitHub Workflow for All Changes:**
+
+Whenever making changes to this repository (code, documentation, Fabric items, configuration), follow this mandatory process:
+
+1. **Create a GitHub Issue**:
+   - Document what you're changing and why
+   - Include acceptance criteria
+   - Apply appropriate labels (e.g., `enhancement`, `bug`, `documentation`)
+   - Example title: "Add lakehouse_platinum to Gold layer"
+
+2. **Create a Feature Branch from main**:
+   - Use descriptive branch names: `feature/<issue-number>-brief-description`
+   - Example: `feature/42-add-platinum-lakehouse`
+   - Branch from latest `main`: `git checkout main && git pull && git checkout -b feature/42-add-platinum-lakehouse`
+
+3. **Work on the Issue**:
+   - Make changes in your feature branch
+   - Commit frequently with clear messages referencing the issue: `git commit -m "Add platinum lakehouse structure #42"`
+   - Test changes locally when applicable
+   - Keep commits focused and atomic
+
+4. **Create a Pull Request**:
+   - Push your feature branch to GitHub: `git push -u origin feature/42-add-platinum-lakehouse`
+   - Create PR from your branch to `main`
+   - Reference the issue in the PR description: "Closes #42"
+   - Add reviewers (at least one required)
+   - Ensure PR description includes:
+     - What changed and why
+     - Testing performed
+     - Any deployment considerations
+
+5. **PR Review and Merge**:
+   - Address review feedback
+   - Ensure CI/CD checks pass
+   - Once approved, merge to `main` (squash commits for clean history)
+   - Delete feature branch after merge
+
+**This workflow applies to:**
+- Adding/modifying Fabric items (lakehouses, notebooks, pipelines)
+- Updating deployment scripts or workflows
+- Documentation changes
+- Configuration updates (`parameter.yml`, `alm.settings.json`)
+- Any changes to scripts, workflows, or repository structure
+
+**Why this matters:**
+- Maintains audit trail of all changes
+- Enables code review and knowledge sharing
+- Prevents conflicts and broken deployments
+- Aligns with trunk-based development best practices
+- Facilitates CI/CD automation (Dev deployments trigger on merge to main)
+
 ### Notebook Development
 
 Fabric notebooks use special comment syntax:
@@ -297,12 +350,22 @@ When creating new items, follow the exact folder/file naming patterns observed i
 
 ## Common Tasks
 
+**⚠️ GitHub Workflow Required**: Before performing any of the tasks below, always follow the GitHub workflow:
+1. Create an issue documenting the change
+2. Create a feature branch from `main`
+3. Make your changes in the feature branch
+4. Create a PR and get it reviewed
+5. Merge to `main` after approval
+
+See [Making Changes to This Repository](#making-changes-to-this-repository) for detailed instructions.
+
 ### Adding a New Lakehouse
 1. Create `<name>.Lakehouse/` directory in appropriate layer
 2. Add `lakehouse.metadata.json` with `{"defaultSchema":"dbo"}`
 3. Add `alm.settings.json` (copy from existing lakehouse)
 4. Add empty `shortcuts.metadata.json` (`[]`)
 5. **Important**: Lakehouse IDs must be transformed by build scripts for each environment
+6. **GitHub**: Create issue → feature branch → PR → merge to main
 
 ### Adding a New Notebook
 1. Create `<name>.Notebook/` directory
@@ -310,12 +373,14 @@ When creating new items, follow the exact folder/file naming patterns observed i
 3. Use `synapse_pyspark` kernel
 4. Include cell boundaries with `# CELL` comments
 5. **Important**: Parameterize any lakehouse references or connections
+6. **GitHub**: Create issue → feature branch → PR → merge to main
 
 ### Adding a Copy Job
 1. Create `<name>.CopyJob/` directory
 2. Add `copyjob-content.json` with `properties.jobMode`
 3. Define `activities` array for pipeline steps
 4. **Important**: Connection IDs and data source paths must be parameterized for build transformation
+5. **GitHub**: Create issue → feature branch → PR → merge to main
 
 ### Build Pipeline Configuration (Future Implementation)
 
