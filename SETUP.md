@@ -39,37 +39,106 @@ Workspace names are dynamically constructed with stage prefixes:
 4. Click **Register**
 5. Copy the **Application (client) ID** (this is `AZURE_CLIENT_ID`)
 6. Copy the **Directory (tenant) ID** (this is `AZURE_TENANT_ID`)
-7. Go to **Certificates & secrets** → **New client secret**
-8. Add description: `GitHub Actions`
-9. Copy the **secret value** (this is `AZURE_CLIENT_SECRET`)
+7. **IMPORTANT**: Copy the **Object ID** for role assignments:
+   - Go to **Azure Active Directory** → **Enterprise Applications**
+   - Search for your application by the **Application (client) ID** you just copied
+   - Click on the application
+   - Copy the **Object ID** (this is `DEPLOYMENT_SP_OBJECT_ID`)
+   - ⚠️ **Note**: This is different from the Application (client) ID!
+8. Go back to **App registrations** → Your app → **Certificates & secrets** → **New client secret**
+9. Add description: `GitHub Actions`
+10. Copy the **secret value** (this is `AZURE_CLIENT_SECRET`)
 
 ### Option B: Using Azure CLI
+
+> **Note:** These commands require `jq` to be installed for JSON parsing. Install it via your package manager (e.g., `apt-get install jq`, `brew install jq`) or use the alternative command below for a simpler approach without `jq`.
 
 ```bash
 # Login to Azure
 az login
 
 # Create Service Principal
-az ad sp create-for-rbac --name "fabric-cicd-deployment" --skip-assignment
+SP_OUTPUT=$(az ad sp create-for-rbac --name "fabric-cicd-deployment" --skip-assignment)
 
-# Output will show:
-# {
-#   "clientId": "xxx",      # AZURE_CLIENT_ID
-#   "clientSecret": "xxx",  # AZURE_CLIENT_SECRET
-#   "tenantId": "xxx"       # AZURE_TENANT_ID
-# }
+# Extract values
+echo "AZURE_CLIENT_ID:" $(echo $SP_OUTPUT | jq -r '.clientId')
+echo "AZURE_CLIENT_SECRET:" $(echo $SP_OUTPUT | jq -r '.clientSecret')
+echo "AZURE_TENANT_ID:" $(echo $SP_OUTPUT | jq -r '.tenantId')
+
+# Get Object ID for the Service Principal (needed for workspace role assignment)
+CLIENT_ID=$(echo $SP_OUTPUT | jq -r '.clientId')
+OBJECT_ID=$(az ad sp show --id $CLIENT_ID --query id -o tsv)
+echo "DEPLOYMENT_SP_OBJECT_ID: $OBJECT_ID"
 ```
 
-## Step 2: Grant Fabric Workspace Permissions
+**Alternative without jq:**
+```bash
+# Create Service Principal and display as table
+az ad sp create-for-rbac --name "fabric-cicd-deployment" --skip-assignment --output table
+
+# Get Object ID separately (use Client ID from above)
+az ad sp show --id <YOUR-CLIENT-ID> --query id -o tsv
+```
+
+## Step 1b: Grant Workspace Creator Permission (For Auto-Creation)
+
+**This step is required for automatic workspace creation. Skip if you plan to manually create all workspaces.**
+
+1. Open **Fabric Admin Portal**: https://app.fabric.microsoft.com/admin-portal
+2. Navigate to **Tenant Settings** → **Developer Settings**
+3. Find setting: **Service principals can create and edit Fabric workspaces**
+4. Enable the setting
+5. Under **Apply to**, select **Specific security groups**
+6. Add your Service Principal:
+   - Search by the Service Principal name (`fabric-cicd-deployment`)
+   - Or create a security group and add the Service Principal to it
+7. Click **Apply**
+
+**Why this permission is needed:**
+- Allows the deployment pipeline to automatically create new workspaces when you add new workspace folders
+- Without this, you must manually create workspaces before deployment
+
+## Step 2: Get Fabric Capacity IDs (For Auto-Creation)
+
+**This step is required for automatic workspace creation. Skip if you plan to manually create all workspaces.**
+
+Get the Capacity ID for each environment (Dev, Test, Prod):
+
+### Option A: Using Fabric Portal
+
+1. Go to **Fabric Admin Portal** → **Capacity Settings**
+2. Click on your capacity for Dev environment
+3. Copy the capacity ID from the URL or capacity details
+4. Repeat for Test and Prod capacities
+
+### Option B: Using PowerShell
+
+```powershell
+# Install required module
+Install-Module -Name MicrosoftPowerBIMgmt -Force
+
+# Connect to Power BI (Fabric uses same authentication)
+Connect-PowerBIServiceAccount
+
+# List all capacities
+Get-PowerBICapacity | Select-Object -Property Id, DisplayName, State
+
+# Copy the capacity IDs for your Dev, Test, and Prod environments
+```
+
+## Step 3: Grant Fabric Workspace Permissions
+
+**Option 1: Manual Workspace Creation (Traditional Approach)**
 
 For **each workspace** in **each environment** (Dev, Test, Prod):
 
-1. Open the Fabric workspace
-2. Click **Workspace settings** → **Manage access**
-3. Click **Add people or groups**
-4. Search for your Service Principal name (`fabric-cicd-deployment`)
-5. Assign role: **Admin** or **Contributor**
-6. Click **Add**
+1. Manually create the workspace in Fabric portal
+2. Name it with correct prefix: `[D] <folder-name>`, `[T] <folder-name>`, `[P] <folder-name>`
+3. Click **Workspace settings** → **Manage access**
+4. Click **Add people or groups**
+5. Search for your Service Principal name (`fabric-cicd-deployment`)
+6. Assign role: **Admin** or **Contributor**
+7. Click **Add**
 
 **Example: For "Fabric Blueprint" workspace, grant permissions to:**
 - `[D] Fabric Blueprint` (Dev)
@@ -78,22 +147,55 @@ For **each workspace** in **each environment** (Dev, Test, Prod):
 
 Repeat for all workspace folders in your repository.
 
+**Option 2: Automatic Workspace Creation (New Feature)**
 
-## Step 3: Configure GitHub Secrets
+If you completed Step 1b (Workspace Creator permission), the deployment pipeline will:
+1. Detect if workspace exists
+2. Create workspace automatically if missing
+3. Assign it to the configured capacity
+4. Grant the Service Principal admin access
+5. Proceed with item deployment
+
+**No manual workspace creation needed!** Just add a new folder to `workspaces/` and the CI/CD will handle the rest.
+
+
+## Step 4: Configure GitHub Secrets
 
 1. Go to your GitHub repository
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret** for each:
 
+### Required Secrets (Always Needed)
+
 | Secret Name | Description | Where to Find |
 |------------|-------------|---------------|
-| `AZURE_CLIENT_ID` | Service Principal Client ID | Azure AD App Registration |
+| `AZURE_CLIENT_ID` | Service Principal Client ID | Azure AD App Registration → Overview |
 | `AZURE_CLIENT_SECRET` | Service Principal Secret | Azure AD App Registration → Certificates & secrets |
-| `AZURE_TENANT_ID` | Azure AD Tenant ID | Azure AD App Registration |
+| `AZURE_TENANT_ID` | Azure AD Tenant ID | Azure AD App Registration → Overview |
 
-**Note**: No workspace name variables needed - workspace names are automatically generated from folder names with stage prefixes.
+### Optional Secrets (For Auto-Creation Feature)
 
-## Step 4: Configure GitHub Environments
+| Secret Name | Description | Where to Find |
+|------------|-------------|---------------|
+| `FABRIC_CAPACITY_ID_DEV` | Dev Fabric capacity GUID | Fabric Admin Portal → Capacity Settings → Dev capacity |
+| `FABRIC_CAPACITY_ID_TEST` | Test Fabric capacity GUID | Fabric Admin Portal → Capacity Settings → Test capacity |
+| `FABRIC_CAPACITY_ID_PROD` | Prod Fabric capacity GUID | Fabric Admin Portal → Capacity Settings → Prod capacity |
+| `DEPLOYMENT_SP_OBJECT_ID` | Service Principal Object ID (NOT Client ID) | Azure AD → Enterprise Applications → Your app → Object ID |
+
+**⚠️ Important: Object ID vs Client ID**
+- `AZURE_CLIENT_ID` = Application (Client) ID from App Registration
+- `DEPLOYMENT_SP_OBJECT_ID` = Object ID from Enterprise Application
+- These are **different values**! The Object ID is needed for workspace role assignments.
+
+**How to find Object ID:**
+1. Azure Portal → **Azure Active Directory** → **Enterprise Applications**
+2. Search for your application using the **Client ID** (Application ID)
+3. Click on the application
+4. Copy the **Object ID** field at the top
+
+**Note**: If you don't configure the capacity secrets, you must manually create all workspaces before deployment.
+
+## Step 5: Configure GitHub Environments
 
 Create three environments for your deployments:
 
@@ -110,7 +212,9 @@ Create three environments for your deployments:
 
 > **Note**: Required reviewers and wait timers require GitHub Team/Enterprise plan. This setup uses manual workflow triggers for Test and Prod deployments instead.
 
-## Step 5: Create Fabric Workspaces
+## Step 6: Create Fabric Workspaces (Manual Creation Only)
+
+**Skip this step if you configured the automatic workspace creation feature (Step 1b and capacity secrets).**
 
 For each workspace folder in `workspaces/`, create three Fabric workspaces:
 
@@ -127,8 +231,9 @@ For each workspace folder in `workspaces/`, create three Fabric workspaces:
 **Important**: 
 - Workspace names MUST match the folder names with appropriate stage prefix
 - Prefixes are case-sensitive: `[D] `, `[T] `, `[P] ` (with space after bracket)
+- If auto-creation is enabled, these workspaces will be created automatically on first deployment
 
-## Step 6: Update Workspace parameter.yml Files
+## Step 7: Update Workspace parameter.yml Files
 
 Get Item IDs from your **Dev workspace** for each workspace folder:
 
@@ -166,7 +271,7 @@ find_replace:
 Each workspace has its own independent configuration file.
 
 
-## Step 7: Test the Pipeline
+## Step 8: Test the Pipeline
 
 ### Test Dev Deployment (Auto)
 

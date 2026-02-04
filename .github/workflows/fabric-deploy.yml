@@ -186,6 +186,8 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          FABRIC_CAPACITY_ID_DEV: ${{ secrets.FABRIC_CAPACITY_ID_DEV }}
+          DEPLOYMENT_SP_OBJECT_ID: ${{ secrets.DEPLOYMENT_SP_OBJECT_ID }}
 
       - name: Deployment Summary
         if: always()
@@ -286,6 +288,10 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          FABRIC_CAPACITY_ID_DEV: ${{ secrets.FABRIC_CAPACITY_ID_DEV }}
+          FABRIC_CAPACITY_ID_TEST: ${{ secrets.FABRIC_CAPACITY_ID_TEST }}
+          FABRIC_CAPACITY_ID_PROD: ${{ secrets.FABRIC_CAPACITY_ID_PROD }}
+          DEPLOYMENT_SP_OBJECT_ID: ${{ secrets.DEPLOYMENT_SP_OBJECT_ID }}
 
       - name: Deployment Summary
         if: always()
@@ -356,6 +362,10 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          FABRIC_CAPACITY_ID_DEV: ${{ secrets.FABRIC_CAPACITY_ID_DEV }}
+          FABRIC_CAPACITY_ID_TEST: ${{ secrets.FABRIC_CAPACITY_ID_TEST }}
+          FABRIC_CAPACITY_ID_PROD: ${{ secrets.FABRIC_CAPACITY_ID_PROD }}
+          DEPLOYMENT_SP_OBJECT_ID: ${{ secrets.DEPLOYMENT_SP_OBJECT_ID }}
 
       - name: Deployment Summary
         if: always()

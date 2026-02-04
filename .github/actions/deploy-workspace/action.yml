@@ -32,7 +32,7 @@ runs:
       shell: pwsh
       run: |
         python -m pip install --upgrade pip
-        pip install fabric-cicd azure-identity
+        pip install fabric-cicd azure-identity requests
     
     - name: Deploy to Fabric
       id: deploy
@@ -46,3 +46,7 @@ runs:
         AZURE_CLIENT_ID: ${{ env.AZURE_CLIENT_ID }}
         AZURE_TENANT_ID: ${{ env.AZURE_TENANT_ID }}
         AZURE_CLIENT_SECRET: ${{ env.AZURE_CLIENT_SECRET }}
+        FABRIC_CAPACITY_ID_DEV: ${{ env.FABRIC_CAPACITY_ID_DEV }}
+        FABRIC_CAPACITY_ID_TEST: ${{ env.FABRIC_CAPACITY_ID_TEST }}
+        FABRIC_CAPACITY_ID_PROD: ${{ env.FABRIC_CAPACITY_ID_PROD }}
+        DEPLOYMENT_SP_OBJECT_ID: ${{ env.DEPLOYMENT_SP_OBJECT_ID }}

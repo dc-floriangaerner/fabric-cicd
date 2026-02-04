@@ -9,6 +9,7 @@ This repository demonstrates best practices for deploying Microsoft Fabric works
 ### Architecture
 
 - **Multi-Workspace Support**: Deploy multiple Fabric workspaces from a single repository
+- **Automatic Workspace Creation**: Auto-create workspaces if they don't exist (optional)
 - **Medallion Architecture**: Bronze → Silver → Gold data layers
 - **Multi-stage Deployment**: Dev → Test → Production with approval gates
 - **Git-based Deployment**: Single source of truth in `main` branch
@@ -310,9 +311,27 @@ This allows each workspace to have different transformation rules independent of
 - Ensure Service Principal is registered in correct Azure AD tenant
 
 **Workspace not found error**
-- Ensure target workspace exists in Fabric with correct name (including stage prefix)
+- If automatic workspace creation is enabled: Check capacity ID secrets and Workspace Creator permission
+- If manual creation: Ensure target workspace exists in Fabric with correct name (including stage prefix)
 - Verify workspace name matches folder name exactly (case-sensitive)
 - Check Service Principal has access to the workspace
+
+**Workspace creation fails**
+- Verify `FABRIC_CAPACITY_ID_*` secrets are set in GitHub repository (Settings → Secrets)
+- Check Service Principal has "Workspace Creator" permission in Fabric Admin Portal:
+  - Navigate to: Tenant Settings → Developer Settings
+  - Enable: "Service principals can create and edit Fabric workspaces"
+  - Add your Service Principal to the allowed list
+- Verify capacity ID is valid and capacity is not paused
+- Check `DEPLOYMENT_SP_OBJECT_ID` contains the Object ID (not Client ID):
+  - Azure Portal → Azure Active Directory → Enterprise Applications
+  - Search by Client ID → Copy Object ID field
+
+**Permission errors during deployment**
+- Check Service Principal has necessary Fabric API permissions
+- Verify Service Principal has Admin or Contributor role in target workspaces
+- For auto-creation: Ensure "Workspace Creator" tenant setting is enabled
+- Review Service Principal permissions in Azure AD and Fabric Admin Portal
 
 **ID transformation not working**
 - Ensure workspace `parameter.yml` has correct Dev workspace IDs
