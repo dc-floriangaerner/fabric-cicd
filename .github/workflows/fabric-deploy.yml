@@ -172,6 +172,9 @@ jobs:
       name: dev
       url: https://app.fabric.microsoft.com
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy using composite action
         uses: ./.github/actions/deploy-workspace
         with:
@@ -241,6 +244,9 @@ jobs:
       name: test
       url: https://app.fabric.microsoft.com
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy using composite action
         uses: ./.github/actions/deploy-workspace
         with:
@@ -279,6 +285,9 @@ jobs:
       name: prod
       url: https://app.fabric.microsoft.com
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy using composite action
         uses: ./.github/actions/deploy-workspace
         with:
