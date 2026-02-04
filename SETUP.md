@@ -181,6 +181,7 @@ If you completed Step 1b (Workspace Creator permission), the deployment pipeline
 | `FABRIC_CAPACITY_ID_TEST` | Test Fabric capacity GUID | Fabric Admin Portal → Capacity Settings → Test capacity |
 | `FABRIC_CAPACITY_ID_PROD` | Prod Fabric capacity GUID | Fabric Admin Portal → Capacity Settings → Prod capacity |
 | `DEPLOYMENT_SP_OBJECT_ID` | Service Principal Object ID (NOT Client ID) | Azure AD → Enterprise Applications → Your app → Object ID |
+| `FABRIC_ADMIN_GROUP_ID` | Entra ID (Azure AD) group for workspace admin access | Azure AD → Groups → Your admin group → Object ID |
 
 **⚠️ Important: Object ID vs Client ID**
 - `AZURE_CLIENT_ID` = Application (Client) ID from App Registration
@@ -192,6 +193,19 @@ If you completed Step 1b (Workspace Creator permission), the deployment pipeline
 2. Search for your application using the **Client ID** (Application ID)
 3. Click on the application
 4. Copy the **Object ID** field at the top
+
+**How to find Entra ID Group Object ID (for FABRIC_ADMIN_GROUP_ID):**
+1. Azure Portal → **Azure Active Directory** → **Groups**
+2. Search for your admin group
+3. Click on the group
+4. Copy the **Object ID** field
+
+**Note about FABRIC_ADMIN_GROUP_ID:**
+- This is **optional** but recommended for centralized access management
+- If configured, all members of this Entra ID group will automatically receive **Admin** permissions to all deployed workspaces
+- This allows you to manage workspace access through Azure AD group membership instead of individual user assignments
+- The group is assigned admin access when workspaces are created or updated via the deployment pipeline
+- **Security**: The group ID must be stored as a GitHub Secret, never commit it to the repository
 
 **Note**: If you don't configure the capacity secrets, you must manually create all workspaces before deployment.
 

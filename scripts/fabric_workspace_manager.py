@@ -258,22 +258,90 @@ def add_workspace_admin(workspace_id: str, service_principal_object_id: str, tok
         raise Exception(f"Role assignment failed. Status: {response.status_code}, Response: {error_text}")
 
 
+def add_entra_id_group_admin(workspace_id: str, entra_group_id: str, token_credential: Union[ClientSecretCredential, DefaultAzureCredential]) -> None:
+    """Add an Entra ID (Azure AD) group as admin to a workspace.
+    
+    Args:
+        workspace_id: GUID of the workspace
+        entra_group_id: Azure AD Object ID of the Entra ID group
+        token_credential: Azure credential for authentication
+        
+    Raises:
+        Exception: If role assignment fails
+    """
+    if not entra_group_id:
+        print("  ℹ No FABRIC_ADMIN_GROUP_ID configured. Skipping Entra ID group assignment.")
+        return
+    
+    token = get_access_token(token_credential)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Add role assignment for group
+    url = f"https://api.fabric.microsoft.com/v1/workspaces/{workspace_id}/roleAssignments"
+    payload = {
+        "principal": {
+            "id": entra_group_id,
+            "type": "Group"
+        },
+        "role": "Admin"
+    }
+    
+    print(f"  → Adding Entra ID group as Admin to workspace...")
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+    except requests.exceptions.Timeout as e:
+        raise Exception("Request to Fabric API timed out while assigning Entra ID group role") from e
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Network error while assigning Entra ID group role: {e}") from e
+    
+    if response.status_code == 200:
+        print(f"  ✓ Entra ID group added as Admin successfully")
+    elif response.status_code == 400:
+        # Safely parse error details
+        error_detail = _parse_error_response(response, "Invalid Entra ID group role assignment request")
+        # Check if group already has access
+        if "already exists" in error_detail.lower() or "already assigned" in error_detail.lower():
+            print(f"  ✓ Entra ID group already has Admin access")
+        else:
+            raise Exception(f"Invalid Entra ID group role assignment request: {error_detail}")
+    elif response.status_code == 409:
+        # HTTP 409 Conflict: Group already has role permissions in workspace
+        print(f"  ✓ Entra ID group already has Admin access")
+    elif response.status_code == 404:
+        raise Exception(
+            f"Invalid Entra ID group Object ID '{entra_group_id}'. "
+            "Verify FABRIC_ADMIN_GROUP_ID secret contains a valid Azure AD group Object ID. "
+            "Find it in Azure Portal → Azure Active Directory → Groups → select group → Object ID."
+        )
+    else:
+        # Truncate long error responses
+        error_text = response.text[:500] if len(response.text) > 500 else response.text
+        raise Exception(f"Entra ID group role assignment failed. Status: {response.status_code}, Response: {error_text}")
+
+
 def ensure_workspace_exists(
     workspace_name: str,
     capacity_id: str,
     service_principal_object_id: str,
-    token_credential: Union[ClientSecretCredential, DefaultAzureCredential]
+    token_credential: Union[ClientSecretCredential, DefaultAzureCredential],
+    entra_admin_group_id: Optional[str] = None
 ) -> str:
     """Ensure workspace exists, creating it if necessary.
     
     This is the main entry point for workspace management. It checks if the workspace
-    exists, creates it if needed, and ensures the service principal has admin access.
+    exists, creates it if needed, and ensures the service principal and Entra ID admin
+    group (if configured) have admin access.
     
     Args:
         workspace_name: Display name of the workspace (e.g., "[D] Fabric Blueprint")
         capacity_id: Fabric capacity ID for the environment
         service_principal_object_id: Azure AD Object ID of the deployment service principal
         token_credential: Azure credential for authentication
+        entra_admin_group_id: Optional Azure AD Object ID of Entra ID group for admin access
         
     Returns:
         Workspace ID (either existing or newly created)
@@ -292,8 +360,13 @@ def ensure_workspace_exists(
             # Note: This always attempts to add the SP as admin, even if it may already have access.
             # The API will handle the "already exists" case gracefully (returns 400 with "already assigned" message).
             # This approach ensures admin access without requiring a separate API call to check existing permissions.
-            print(f"  ℹ Workspace already exists, ensuring service principal has admin access...")
+            print(f"  ℹ Workspace already exists, ensuring admin access...")
             add_workspace_admin(workspace_id, service_principal_object_id, token_credential)
+            
+            # Add Entra ID admin group if configured
+            if entra_admin_group_id:
+                add_entra_id_group_admin(workspace_id, entra_admin_group_id, token_credential)
+            
             print(f"  ✓ Workspace '{workspace_name}' is ready for deployment")
             return workspace_id
         
@@ -303,6 +376,10 @@ def ensure_workspace_exists(
         
         # Add service principal as admin
         add_workspace_admin(workspace_id, service_principal_object_id, token_credential)
+        
+        # Add Entra ID admin group if configured
+        if entra_admin_group_id:
+            add_entra_id_group_admin(workspace_id, entra_admin_group_id, token_credential)
         
         print(f"  ✓ Workspace '{workspace_name}' is ready for deployment")
         return workspace_id

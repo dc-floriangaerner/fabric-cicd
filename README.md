@@ -67,9 +67,25 @@ No GitHub variables needed - names are automatically generated from folder names
 ### GitHub Setup
 
 Configure the following **GitHub Secrets** in your repository:
+
+**Required Secrets:**
 - `AZURE_CLIENT_ID` - Service Principal Client ID
 - `AZURE_CLIENT_SECRET` - Service Principal Secret
 - `AZURE_TENANT_ID` - Azure AD Tenant ID
+
+**Optional Secrets (for workspace auto-creation and admin group):**
+- `FABRIC_CAPACITY_ID_DEV` - Dev capacity ID (enables auto-creation)
+- `FABRIC_CAPACITY_ID_TEST` - Test capacity ID (enables auto-creation)
+- `FABRIC_CAPACITY_ID_PROD` - Prod capacity ID (enables auto-creation)
+- `DEPLOYMENT_SP_OBJECT_ID` - Service Principal Object ID for workspace admin role
+- `FABRIC_ADMIN_GROUP_ID` - Entra ID group Object ID for centralized admin access (recommended)
+
+**About FABRIC_ADMIN_GROUP_ID:**
+- Assigns an Entra ID (Azure AD) security group as admin to all deployed workspaces
+- Enables centralized access management through Azure AD group membership
+- All group members automatically receive Admin permissions to workspaces
+- Must be stored as a GitHub Secret for security (never commit to repository)
+- Optional but recommended for team-based access management
 
 **To add secrets**: Go to repository Settings → Secrets and variables → Actions → New repository secret
 

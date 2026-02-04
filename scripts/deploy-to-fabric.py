@@ -47,7 +47,8 @@ def deploy_workspace(
     environment: str,
     token_credential,
     capacity_id: str = None,
-    service_principal_object_id: str = None
+    service_principal_object_id: str = None,
+    entra_admin_group_id: str = None
 ) -> tuple[bool, str]:
     """Deploy a single workspace.
     
@@ -63,6 +64,8 @@ def deploy_workspace(
             role assignment when a new workspace is created. Required for auto-creation
             scenarios where the service principal should be granted access; optional if
             the workspace already exists and no new role assignment is needed.
+        entra_admin_group_id: Optional Azure AD Object ID of Entra ID group to grant
+            admin permissions. If provided, the group will be assigned as a workspace admin.
         
     Returns:
         Tuple of (success: bool, error_message: str). Error message is empty string if successful.
@@ -87,7 +90,8 @@ def deploy_workspace(
             workspace_name=workspace_name,
             capacity_id=capacity_id,
             service_principal_object_id=service_principal_object_id,
-            token_credential=token_credential
+            token_credential=token_credential,
+            entra_admin_group_id=entra_admin_group_id
         )
         print(f"→ Workspace ensured with ID: {workspace_id}")
         
@@ -179,6 +183,7 @@ def main():
             capacity_id = os.getenv("FABRIC_CAPACITY_ID_PROD")
         
         service_principal_object_id = os.getenv("DEPLOYMENT_SP_OBJECT_ID")
+        entra_admin_group_id = os.getenv("FABRIC_ADMIN_GROUP_ID")
         
         # Determine which workspaces to deploy
         if workspace_folders_arg:
@@ -210,7 +215,8 @@ def main():
                 environment=environment,
                 token_credential=token_credential,
                 capacity_id=capacity_id,
-                service_principal_object_id=service_principal_object_id
+                service_principal_object_id=service_principal_object_id,
+                entra_admin_group_id=entra_admin_group_id
             )
             
             if success:
