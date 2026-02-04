@@ -156,14 +156,13 @@ def create_workspace(workspace_name: str, capacity_id: str, token_credential: Un
         workspace_id = None
         try:
             body = response.json()
-            if isinstance(body, dict):
-                workspace_id = body.get("id")
+            workspace_id = body.get("id")
         except ValueError as parse_error:
             print("WARNING: Failed to parse JSON success response from Fabric API while creating workspace")
-            print(f"         Parse error: {parse_error}")
+            print(f"Parse error: {parse_error}")
         except Exception as handler_error:
             print("WARNING: Unexpected error while handling Fabric API success response while creating workspace")
-            print(f"         Handler error: {handler_error}")
+            print(f"Handler error: {handler_error}")
         
         if not workspace_id:
             raise Exception(
