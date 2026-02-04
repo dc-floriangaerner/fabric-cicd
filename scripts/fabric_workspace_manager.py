@@ -298,7 +298,7 @@ def add_entra_id_group_admin(workspace_id: str, entra_group_id: str, token_crede
     except requests.exceptions.RequestException as e:
         raise Exception(f"Network error while assigning Entra ID group role: {e}") from e
     
-    if response.status_code == 200:
+    if response.status_code in (200, 201):
         print(f"  ✓ Entra ID group added as Admin successfully")
     elif response.status_code == 400:
         # Safely parse error details
