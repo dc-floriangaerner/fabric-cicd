@@ -78,18 +78,13 @@ def deploy_workspace(
         print(f"{'='*60}\n")
         
         # Ensure workspace exists (create if necessary)
-        try:
-            workspace_id = ensure_workspace_exists(
-                workspace_name=workspace_name,
-                capacity_id=capacity_id,
-                service_principal_object_id=service_principal_object_id,
-                token_credential=token_credential
-            )
-            print(f"→ Workspace ensured with ID: {workspace_id}")
-        except Exception as e:
-            error_message = str(e)
-            print(f"\n✗ ERROR: Failed to ensure workspace exists: {error_message}\n")
-            return False, f"Workspace creation/validation failed: {error_message}"
+        workspace_id = ensure_workspace_exists(
+            workspace_name=workspace_name,
+            capacity_id=capacity_id,
+            service_principal_object_id=service_principal_object_id,
+            token_credential=token_credential
+        )
+        print(f"→ Workspace ensured with ID: {workspace_id}")
         
         # Initialize the FabricWorkspace object
         target_workspace = FabricWorkspace(

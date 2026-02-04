@@ -3,8 +3,9 @@
 
 """Fabric workspace management utilities for auto-creating workspaces and managing permissions."""
 
-from typing import Optional
+from typing import Optional, Union
 import requests
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
 
 def _parse_error_response(response, default_message: str = "Unknown error") -> str:
@@ -44,7 +45,7 @@ def _parse_error_response(response, default_message: str = "Unknown error") -> s
     return error_detail
 
 
-def get_access_token(token_credential) -> str:
+def get_access_token(token_credential: Union[ClientSecretCredential, DefaultAzureCredential]) -> str:
     """Get Fabric API access token from credential.
     
     Args:
@@ -63,7 +64,7 @@ def get_access_token(token_credential) -> str:
         raise Exception(f"Failed to acquire access token: {str(e)}")
 
 
-def check_workspace_exists(workspace_name: str, token_credential) -> Optional[str]:
+def check_workspace_exists(workspace_name: str, token_credential: Union[ClientSecretCredential, DefaultAzureCredential]) -> Optional[str]:
     """Check if a workspace with the given name exists.
     
     Args:
@@ -109,7 +110,7 @@ def check_workspace_exists(workspace_name: str, token_credential) -> Optional[st
     return None
 
 
-def create_workspace(workspace_name: str, capacity_id: str, token_credential) -> str:
+def create_workspace(workspace_name: str, capacity_id: str, token_credential: Union[ClientSecretCredential, DefaultAzureCredential]) -> str:
     """Create a new Fabric workspace with the specified capacity.
     
     Args:
@@ -146,11 +147,29 @@ def create_workspace(workspace_name: str, capacity_id: str, token_credential) ->
     
     try:
         response = requests.post(create_url, headers=headers, json=payload, timeout=60)
-    except requests.exceptions.Timeout:
-        raise Exception("Request to Fabric API timed out while creating workspace")
+    except requests.exceptions.Timeout as e:
+        raise Exception("Request to Fabric API timed out while creating workspace") from e
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Network error while calling Fabric API to create workspace: {e}") from e
     
     if response.status_code == 201:
-        workspace_id = response.json().get("id")
+        workspace_id = None
+        try:
+            body = response.json()
+            workspace_id = body.get("id")
+        except ValueError as parse_error:
+            print("WARNING: Failed to parse JSON success response from Fabric API while creating workspace")
+            print(f"Parse error: {parse_error}")
+        except Exception as handler_error:
+            print("WARNING: Unexpected error while handling Fabric API success response while creating workspace")
+            print(f"Handler error: {handler_error}")
+        
+        if not workspace_id:
+            raise Exception(
+                "Workspace creation returned HTTP 201 but response did not contain a valid 'id' field. "
+                "Inspect Fabric API response for details."
+            )
+        
         print(f"  ✓ Workspace created successfully (ID: {workspace_id})")
         return workspace_id
     elif response.status_code == 400:
@@ -171,7 +190,7 @@ def create_workspace(workspace_name: str, capacity_id: str, token_credential) ->
         raise Exception(f"Workspace creation failed. Status: {response.status_code}, Response: {error_text}")
 
 
-def add_workspace_admin(workspace_id: str, service_principal_object_id: str, token_credential) -> None:
+def add_workspace_admin(workspace_id: str, service_principal_object_id: str, token_credential: Union[ClientSecretCredential, DefaultAzureCredential]) -> None:
     """Add a service principal as admin to a workspace.
     
     Args:
@@ -208,8 +227,10 @@ def add_workspace_admin(workspace_id: str, service_principal_object_id: str, tok
     
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=30)
-    except requests.exceptions.Timeout:
-        raise Exception("Request to Fabric API timed out while assigning workspace role")
+    except requests.exceptions.Timeout as e:
+        raise Exception("Request to Fabric API timed out while assigning workspace role") from e
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Network error while assigning workspace role: {e}") from e
     
     if response.status_code == 200:
         print(f"  ✓ Service Principal added as Admin successfully")
@@ -237,7 +258,7 @@ def ensure_workspace_exists(
     workspace_name: str,
     capacity_id: str,
     service_principal_object_id: str,
-    token_credential
+    token_credential: Union[ClientSecretCredential, DefaultAzureCredential]
 ) -> str:
     """Ensure workspace exists, creating it if necessary.
     
@@ -263,7 +284,10 @@ def ensure_workspace_exists(
         workspace_id = check_workspace_exists(workspace_name, token_credential)
         
         if workspace_id:
-            # Workspace exists, ensure service principal has admin access
+            # Workspace exists, ensure service principal has admin access.
+            # Note: This always attempts to add the SP as admin, even if it may already have access.
+            # The API will handle the "already exists" case gracefully (returns 400 with "already assigned" message).
+            # This approach ensures admin access without requiring a separate API call to check existing permissions.
             print(f"  ℹ Workspace already exists, ensuring service principal has admin access...")
             add_workspace_admin(workspace_id, service_principal_object_id, token_credential)
             print(f"  ✓ Workspace '{workspace_name}' is ready for deployment")

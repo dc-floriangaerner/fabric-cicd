@@ -51,6 +51,8 @@ Workspace names are dynamically constructed with stage prefixes:
 
 ### Option B: Using Azure CLI
 
+> **Note:** These commands require `jq` to be installed for JSON parsing. Install it via your package manager (e.g., `apt-get install jq`, `brew install jq`) or use the alternative command below for a simpler approach without `jq`.
+
 ```bash
 # Login to Azure
 az login
@@ -67,6 +69,15 @@ echo "AZURE_TENANT_ID:" $(echo $SP_OUTPUT | jq -r '.tenantId')
 CLIENT_ID=$(echo $SP_OUTPUT | jq -r '.clientId')
 OBJECT_ID=$(az ad sp show --id $CLIENT_ID --query id -o tsv)
 echo "DEPLOYMENT_SP_OBJECT_ID: $OBJECT_ID"
+```
+
+**Alternative without jq:**
+```bash
+# Create Service Principal and display as table
+az ad sp create-for-rbac --name "fabric-cicd-deployment" --skip-assignment --output table
+
+# Get Object ID separately (use Client ID from above)
+az ad sp show --id <YOUR-CLIENT-ID> --query id -o tsv
 ```
 
 ## Step 1b: Grant Workspace Creator Permission (For Auto-Creation)
