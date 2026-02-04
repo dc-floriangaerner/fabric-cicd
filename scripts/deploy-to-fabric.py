@@ -230,6 +230,44 @@ def main():
         # Calculate deployment duration
         deployment_duration = time.time() - deployment_start_time
         
+        # Write deployment results to JSON file for GitHub Actions summary
+        results_file = "deployment-results.json"
+        stage_prefix = get_stage_prefix(environment)
+        deployment_results = {
+            "environment": environment,
+            "duration": deployment_duration,
+            "total_workspaces": len(workspace_folders),
+            "successful_count": len(deployed_workspaces),
+            "failed_count": len(failed_deployments),
+            "workspaces": []
+        }
+        
+        # Add successful workspaces
+        for workspace in deployed_workspaces:
+            deployment_results["workspaces"].append({
+                "name": workspace,
+                "full_name": f"{stage_prefix}{workspace}",
+                "status": "success",
+                "error": ""
+            })
+        
+        # Add failed workspaces
+        for failure in failed_deployments:
+            deployment_results["workspaces"].append({
+                "name": failure["workspace"],
+                "full_name": f"{stage_prefix}{failure['workspace']}",
+                "status": "failure",
+                "error": failure["error"]
+            })
+        
+        # Sort workspaces by name for consistent output
+        deployment_results["workspaces"].sort(key=lambda x: x["name"])
+        
+        # Write to file
+        with open(results_file, "w", encoding="utf-8") as f:
+            json.dump(deployment_results, f, indent=2)
+        print(f"\n→ Deployment results written to {results_file}")
+        
         # Print comprehensive deployment summary
         print("\n" + "="*70)
         print("DEPLOYMENT SUMMARY")
@@ -244,7 +282,6 @@ def main():
         # Report successful deployments
         if deployed_workspaces:
             print("\n✓ SUCCESSFUL DEPLOYMENTS:")
-            stage_prefix = get_stage_prefix(environment)
             for workspace in deployed_workspaces:
                 print(f"  ✓ {stage_prefix}{workspace}")
         

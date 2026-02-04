@@ -227,34 +227,49 @@ jobs:
             echo "- **Trigger Type**: Manual (all workspaces)" >> $GITHUB_STEP_SUMMARY
           fi
           
-          # Count workspaces
-          deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
-          if [ -n "$deployed_workspaces" ]; then
-            IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
-            workspace_count=${#WORKSPACES[@]}
+          # Read deployment results from JSON file if it exists
+          if [ -f "deployment-results.json" ]; then
+            total_workspaces=$(jq -r '.total_workspaces' deployment-results.json)
+            successful_count=$(jq -r '.successful_count' deployment-results.json)
+            failed_count=$(jq -r '.failed_count' deployment-results.json)
+            duration=$(jq -r '.duration' deployment-results.json)
           else
-            workspace_count=0
+            # Fallback to counting from input
+            deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
+            if [ -n "$deployed_workspaces" ]; then
+              IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
+              total_workspaces=${#WORKSPACES[@]}
+            else
+              total_workspaces=0
+            fi
+            successful_count=0
+            failed_count=$total_workspaces
+            duration="N/A"
           fi
           
           echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total Workspaces**: $workspace_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Workspaces**: $total_workspaces" >> $GITHUB_STEP_SUMMARY
+          echo "- **Successful**: $successful_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed**: $failed_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${duration}s" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # List deployed workspaces with stage prefix
-          if [ "$workspace_count" -gt 0 ]; then
-            if [ "${{ job.status }}" == "success" ]; then
-              echo "#### ✓ Deployed Workspaces:" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "#### Deployment Attempted:" >> $GITHUB_STEP_SUMMARY
-            fi
+          # List workspaces with individual status from JSON
+          if [ -f "deployment-results.json" ] && [ "$total_workspaces" -gt 0 ]; then
+            echo "#### Deployment Results:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            for workspace in "${WORKSPACES[@]}"; do
-              if [ "${{ job.status }}" == "success" ]; then
-                echo "- ✓ [D] $workspace" >> $GITHUB_STEP_SUMMARY
+            
+            # Read and display each workspace status
+            jq -r '.workspaces[] | "\(.status)|\(.full_name)|\(.error)"' deployment-results.json | while IFS='|' read -r status full_name error; do
+              if [ "$status" == "success" ]; then
+                echo "- ✓ $full_name" >> $GITHUB_STEP_SUMMARY
               else
-                echo "- ⚠️ [D] $workspace" >> $GITHUB_STEP_SUMMARY
+                echo "- ✗ $full_name" >> $GITHUB_STEP_SUMMARY
+                if [ -n "$error" ]; then
+                  echo "  - Error: $error" >> $GITHUB_STEP_SUMMARY
+                fi
               fi
             done
           fi
@@ -302,34 +317,49 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger Type**: Manual (all workspaces)" >> $GITHUB_STEP_SUMMARY
           
-          # Count workspaces
-          deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
-          if [ -n "$deployed_workspaces" ]; then
-            IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
-            workspace_count=${#WORKSPACES[@]}
+          # Read deployment results from JSON file if it exists
+          if [ -f "deployment-results.json" ]; then
+            total_workspaces=$(jq -r '.total_workspaces' deployment-results.json)
+            successful_count=$(jq -r '.successful_count' deployment-results.json)
+            failed_count=$(jq -r '.failed_count' deployment-results.json)
+            duration=$(jq -r '.duration' deployment-results.json)
           else
-            workspace_count=0
+            # Fallback to counting from input
+            deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
+            if [ -n "$deployed_workspaces" ]; then
+              IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
+              total_workspaces=${#WORKSPACES[@]}
+            else
+              total_workspaces=0
+            fi
+            successful_count=0
+            failed_count=$total_workspaces
+            duration="N/A"
           fi
           
           echo "- **Environment**: test" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total Workspaces**: $workspace_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Workspaces**: $total_workspaces" >> $GITHUB_STEP_SUMMARY
+          echo "- **Successful**: $successful_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed**: $failed_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${duration}s" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # List deployed workspaces with stage prefix
-          if [ "$workspace_count" -gt 0 ]; then
-            if [ "${{ job.status }}" == "success" ]; then
-              echo "#### ✓ Deployed Workspaces:" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "#### Deployment Attempted:" >> $GITHUB_STEP_SUMMARY
-            fi
+          # List workspaces with individual status from JSON
+          if [ -f "deployment-results.json" ] && [ "$total_workspaces" -gt 0 ]; then
+            echo "#### Deployment Results:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            for workspace in "${WORKSPACES[@]}"; do
-              if [ "${{ job.status }}" == "success" ]; then
-                echo "- ✓ [T] $workspace" >> $GITHUB_STEP_SUMMARY
+            
+            # Read and display each workspace status
+            jq -r '.workspaces[] | "\(.status)|\(.full_name)|\(.error)"' deployment-results.json | while IFS='|' read -r status full_name error; do
+              if [ "$status" == "success" ]; then
+                echo "- ✓ $full_name" >> $GITHUB_STEP_SUMMARY
               else
-                echo "- ⚠️ [T] $workspace" >> $GITHUB_STEP_SUMMARY
+                echo "- ✗ $full_name" >> $GITHUB_STEP_SUMMARY
+                if [ -n "$error" ]; then
+                  echo "  - Error: $error" >> $GITHUB_STEP_SUMMARY
+                fi
               fi
             done
           fi
@@ -377,34 +407,49 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger Type**: Manual (all workspaces)" >> $GITHUB_STEP_SUMMARY
           
-          # Count workspaces
-          deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
-          if [ -n "$deployed_workspaces" ]; then
-            IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
-            workspace_count=${#WORKSPACES[@]}
+          # Read deployment results from JSON file if it exists
+          if [ -f "deployment-results.json" ]; then
+            total_workspaces=$(jq -r '.total_workspaces' deployment-results.json)
+            successful_count=$(jq -r '.successful_count' deployment-results.json)
+            failed_count=$(jq -r '.failed_count' deployment-results.json)
+            duration=$(jq -r '.duration' deployment-results.json)
           else
-            workspace_count=0
+            # Fallback to counting from input
+            deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
+            if [ -n "$deployed_workspaces" ]; then
+              IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
+              total_workspaces=${#WORKSPACES[@]}
+            else
+              total_workspaces=0
+            fi
+            successful_count=0
+            failed_count=$total_workspaces
+            duration="N/A"
           fi
           
           echo "- **Environment**: prod" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total Workspaces**: $workspace_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Workspaces**: $total_workspaces" >> $GITHUB_STEP_SUMMARY
+          echo "- **Successful**: $successful_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed**: $failed_count" >> $GITHUB_STEP_SUMMARY
+          echo "- **Duration**: ${duration}s" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # List deployed workspaces with stage prefix
-          if [ "$workspace_count" -gt 0 ]; then
-            if [ "${{ job.status }}" == "success" ]; then
-              echo "#### ✓ Deployed Workspaces:" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "#### Deployment Attempted:" >> $GITHUB_STEP_SUMMARY
-            fi
+          # List workspaces with individual status from JSON
+          if [ -f "deployment-results.json" ] && [ "$total_workspaces" -gt 0 ]; then
+            echo "#### Deployment Results:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            for workspace in "${WORKSPACES[@]}"; do
-              if [ "${{ job.status }}" == "success" ]; then
-                echo "- ✓ [P] $workspace" >> $GITHUB_STEP_SUMMARY
+            
+            # Read and display each workspace status
+            jq -r '.workspaces[] | "\(.status)|\(.full_name)|\(.error)"' deployment-results.json | while IFS='|' read -r status full_name error; do
+              if [ "$status" == "success" ]; then
+                echo "- ✓ $full_name" >> $GITHUB_STEP_SUMMARY
               else
-                echo "- ⚠️ [P] $workspace" >> $GITHUB_STEP_SUMMARY
+                echo "- ✗ $full_name" >> $GITHUB_STEP_SUMMARY
+                if [ -n "$error" ]; then
+                  echo "  - Error: $error" >> $GITHUB_STEP_SUMMARY
+                fi
               fi
             done
           fi
