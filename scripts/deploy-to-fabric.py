@@ -13,7 +13,7 @@ from typing import List, Dict, Optional
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from fabric_cicd import FabricWorkspace, change_log_level, publish_all_items, unpublish_all_orphan_items
-from fabric_workspace_manager import ensure_workspace_exists, validate_workspace_creator_permission
+from fabric_workspace_manager import ensure_workspace_exists
 
 
 def get_stage_prefix(environment: str) -> str:
@@ -179,17 +179,6 @@ def main():
             capacity_id = os.getenv("FABRIC_CAPACITY_ID_PROD")
         
         service_principal_object_id = os.getenv("DEPLOYMENT_SP_OBJECT_ID")
-        
-        # Validate workspace creator permissions only when automatic workspace creation is enabled
-        if capacity_id:
-            print("→ Validating Service Principal permissions for workspace creation...")
-            has_permission, error_msg = validate_workspace_creator_permission(token_credential)
-            if not has_permission:
-                print(f"✗ ERROR: {error_msg}\n")
-                sys.exit(1)
-            print("  ✓ Service Principal has Fabric API access for workspace creation\n")
-        else:
-            print("→ Skipping workspace-creation permission validation (no capacity configured; automatic workspace creation disabled)\n")
         
         # Determine which workspaces to deploy
         if workspace_folders_arg:

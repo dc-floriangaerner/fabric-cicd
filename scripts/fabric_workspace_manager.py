@@ -7,6 +7,43 @@ from typing import Optional
 import requests
 
 
+def _parse_error_response(response, default_message: str = "Unknown error") -> str:
+    """Parse error response from Fabric API, handling various response formats.
+    
+    Args:
+        response: requests.Response object
+        default_message: Default message if parsing fails
+        
+    Returns:
+        Parsed error message, truncated if too long
+    """
+    error_detail = response.text[:500] if len(response.text) > 500 else response.text
+    content_type = response.headers.get("Content-Type", "").lower()
+    
+    if "application/json" in content_type:
+        try:
+            body = response.json()
+            if isinstance(body, dict):
+                # Try to extract nested error message
+                error_msg = body.get("error", {})
+                if isinstance(error_msg, dict):
+                    error_detail = error_msg.get("message", error_detail)
+                elif isinstance(error_msg, str):
+                    error_detail = error_msg
+        except ValueError as parse_error:
+            # Log JSON parsing failure
+            print(f"WARNING: Failed to parse JSON error response from Fabric API")
+            print(f"         Parse error: {parse_error}")
+            print(f"         Using raw response text (truncated)")
+        except Exception as handler_error:
+            # Log any other unexpected error
+            print(f"WARNING: Unexpected error while handling Fabric API error response")
+            print(f"         Handler error: {handler_error}")
+            print(f"         Using raw response text (truncated)")
+    
+    return error_detail
+
+
 def get_access_token(token_credential) -> str:
     """Get Fabric API access token from credential.
     
@@ -26,44 +63,6 @@ def get_access_token(token_credential) -> str:
         raise Exception(f"Failed to acquire access token: {str(e)}")
 
 
-def validate_workspace_creator_permission(token_credential) -> tuple[bool, str]:
-    """Validate that the service principal has permission to create workspaces.
-    
-    This attempts to list workspaces to verify basic API access. Full validation of 
-    workspace creator permission happens when attempting actual workspace creation.
-    
-    Args:
-        token_credential: Azure credential for authentication
-        
-    Returns:
-        Tuple of (has_permission: bool, error_message: str)
-    """
-    try:
-        token = get_access_token(token_credential)
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-        
-        # Test API access by listing workspaces
-        list_url = "https://api.fabric.microsoft.com/v1/workspaces"
-        response = requests.get(list_url, headers=headers, timeout=30)
-        
-        if response.status_code == 200:
-            return True, ""
-        elif response.status_code == 401:
-            return False, "Authentication failed. Check AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, and AZURE_TENANT_ID."
-        elif response.status_code == 403:
-            return False, "Service Principal lacks permissions to access Fabric API. Ensure it has 'Workspace Creator' role in Fabric Admin Portal."
-        else:
-            return False, f"Fabric API returned status {response.status_code}: {response.text}"
-            
-    except requests.exceptions.Timeout:
-        return False, "Request to Fabric API timed out. Check network connectivity."
-    except Exception as e:
-        return False, f"Failed to validate permissions: {str(e)}"
-
-
 def check_workspace_exists(workspace_name: str, token_credential) -> Optional[str]:
     """Check if a workspace with the given name exists.
     
@@ -77,32 +76,37 @@ def check_workspace_exists(workspace_name: str, token_credential) -> Optional[st
     Raises:
         Exception: If API call fails
     """
+    token = get_access_token(token_credential)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    list_url = "https://api.fabric.microsoft.com/v1/workspaces"
+    
     try:
-        token = get_access_token(token_credential)
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-        
-        list_url = "https://api.fabric.microsoft.com/v1/workspaces"
         response = requests.get(list_url, headers=headers, timeout=30)
-        
-        if response.status_code != 200:
-            raise Exception(f"Failed to list workspaces. Status: {response.status_code}, Response: {response.text}")
-        
-        workspaces = response.json().get("value", [])
-        for workspace in workspaces:
-            if workspace.get("displayName") == workspace_name:
-                workspace_id = workspace.get("id")
-                print(f"  ✓ Workspace '{workspace_name}' already exists (ID: {workspace_id})")
-                return workspace_id
-        
-        return None
-        
     except requests.exceptions.Timeout:
         raise Exception("Request to Fabric API timed out while checking workspace existence")
-    except Exception as e:
-        raise Exception(f"Failed to check workspace existence: {str(e)}")
+    
+    if response.status_code != 200:
+        # Truncate long error responses
+        error_text = response.text[:500] if len(response.text) > 500 else response.text
+        raise Exception(f"Failed to list workspaces. Status: {response.status_code}, Response: {error_text}")
+    
+    try:
+        workspaces_data = response.json()
+    except ValueError as e:
+        raise Exception(f"Failed to parse workspace list response as JSON: {str(e)}")
+    
+    workspaces = workspaces_data.get("value", [])
+    for workspace in workspaces:
+        if workspace.get("displayName") == workspace_name:
+            workspace_id = workspace.get("id")
+            print(f"  ✓ Workspace '{workspace_name}' already exists (ID: {workspace_id})")
+            return workspace_id
+    
+    return None
 
 
 def create_workspace(workspace_name: str, capacity_id: str, token_credential) -> str:
@@ -119,62 +123,52 @@ def create_workspace(workspace_name: str, capacity_id: str, token_credential) ->
     Raises:
         Exception: If workspace creation fails
     """
+    if not capacity_id:
+        raise Exception(
+            "Capacity ID is required to auto-create a Fabric workspace. "
+            f"Either manually create a workspace named '{workspace_name}' in Fabric, "
+            "or set the appropriate FABRIC_CAPACITY_ID_* secret in GitHub to enable auto-creation."
+        )
+    
+    token = get_access_token(token_credential)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    create_url = "https://api.fabric.microsoft.com/v1/workspaces"
+    payload = {
+        "displayName": workspace_name,
+        "capacityId": capacity_id
+    }
+    
+    print(f"  → Creating workspace '{workspace_name}' with capacity '{capacity_id}'...")
+    
     try:
-        if not capacity_id:
-            raise Exception(
-                "Capacity ID is required to auto-create a Fabric workspace. "
-                f"Either manually create a workspace named '{workspace_name}' in Fabric, "
-                "or set the appropriate FABRIC_CAPACITY_ID_* secret in GitHub to enable auto-creation."
-            )
-        
-        token = get_access_token(token_credential)
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-        
-        create_url = "https://api.fabric.microsoft.com/v1/workspaces"
-        payload = {
-            "displayName": workspace_name,
-            "capacityId": capacity_id
-        }
-        
-        print(f"  → Creating workspace '{workspace_name}' with capacity '{capacity_id}'...")
         response = requests.post(create_url, headers=headers, json=payload, timeout=60)
-        
-        if response.status_code == 201:
-            workspace_id = response.json().get("id")
-            print(f"  ✓ Workspace created successfully (ID: {workspace_id})")
-            return workspace_id
-        elif response.status_code == 400:
-            # Safely parse error details
-            try:
-                error_body = response.json()
-                if isinstance(error_body, dict):
-                    error_detail = error_body.get("error", {}).get("message", response.text)
-                else:
-                    error_detail = response.text
-            except Exception:
-                # Fallback if response is not valid JSON or has unexpected structure
-                error_detail = response.text
-            raise Exception(f"Invalid workspace creation request: {error_detail}")
-        elif response.status_code == 403:
-            raise Exception(
-                "Service Principal lacks 'Workspace Creator' permission. "
-                "Grant this permission in Fabric Admin Portal → Tenant Settings → Developer Settings → "
-                "Service Principals can create and edit Fabric workspaces."
-            )
-        elif response.status_code == 404:
-            raise Exception(f"Invalid capacity ID '{capacity_id}'. Verify FABRIC_CAPACITY_ID_* secret is correct.")
-        else:
-            raise Exception(f"Workspace creation failed. Status: {response.status_code}, Response: {response.text}")
-            
     except requests.exceptions.Timeout:
         raise Exception("Request to Fabric API timed out while creating workspace")
-    except Exception as e:
-        if "Workspace Creator" in str(e) or "capacity" in str(e).lower():
-            raise  # Re-raise with original message for configuration errors
-        raise Exception(f"Failed to create workspace: {str(e)}")
+    
+    if response.status_code == 201:
+        workspace_id = response.json().get("id")
+        print(f"  ✓ Workspace created successfully (ID: {workspace_id})")
+        return workspace_id
+    elif response.status_code == 400:
+        # Safely parse error details
+        error_detail = _parse_error_response(response, "Invalid workspace creation request")
+        raise Exception(f"Invalid workspace creation request: {error_detail}")
+    elif response.status_code == 403:
+        raise Exception(
+            "Service Principal lacks 'Workspace Creator' permission. "
+            "Grant this permission in Fabric Admin Portal → Tenant Settings → Developer Settings → "
+            "Service Principals can create and edit Fabric workspaces."
+        )
+    elif response.status_code == 404:
+        raise Exception(f"Invalid capacity ID '{capacity_id}'. Verify FABRIC_CAPACITY_ID_* secret is correct.")
+    else:
+        # Truncate long error responses
+        error_text = response.text[:500] if len(response.text) > 500 else response.text
+        raise Exception(f"Workspace creation failed. Status: {response.status_code}, Response: {error_text}")
 
 
 def add_workspace_admin(workspace_id: str, service_principal_object_id: str, token_credential) -> None:
@@ -188,65 +182,55 @@ def add_workspace_admin(workspace_id: str, service_principal_object_id: str, tok
     Raises:
         Exception: If role assignment fails
     """
+    if not service_principal_object_id:
+        print("  ⚠ WARNING: DEPLOYMENT_SP_OBJECT_ID not set. Skipping role assignment.")
+        print("    The workspace was created but the service principal may not have admin access.")
+        print("    You may need to manually grant admin permissions in Fabric portal.")
+        return
+    
+    token = get_access_token(token_credential)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
+    # Add role assignment
+    url = f"https://api.fabric.microsoft.com/v1/workspaces/{workspace_id}/roleAssignments"
+    payload = {
+        "principal": {
+            "id": service_principal_object_id,
+            "type": "ServicePrincipal"
+        },
+        "role": "Admin"
+    }
+    
+    print(f"  → Adding Service Principal as Admin to workspace...")
+    
     try:
-        if not service_principal_object_id:
-            print("  ⚠ WARNING: DEPLOYMENT_SP_OBJECT_ID not set. Skipping role assignment.")
-            print("    The workspace was created but the service principal may not have admin access.")
-            print("    You may need to manually grant admin permissions in Fabric portal.")
-            return
-        
-        token = get_access_token(token_credential)
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
-        
-        # Add role assignment
-        url = f"https://api.fabric.microsoft.com/v1/workspaces/{workspace_id}/roleAssignments"
-        payload = {
-            "principal": {
-                "id": service_principal_object_id,
-                "type": "ServicePrincipal"
-            },
-            "role": "Admin"
-        }
-        
-        print(f"  → Adding Service Principal as Admin to workspace...")
         response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            print(f"  ✓ Service Principal added as Admin successfully")
-        elif response.status_code == 400:
-            # Safely parse error details without assuming JSON structure
-            error_detail = response.text
-            content_type = response.headers.get("Content-Type", "").lower()
-            if "application/json" in content_type:
-                try:
-                    body = response.json()
-                    error_detail = body.get("error", {}).get("message", error_detail)
-                except Exception:
-                    # Fall back to raw response text if JSON parsing fails
-                    error_detail = response.text or "Unknown error"
-            # Check if SP already has access
-            if "already exists" in error_detail.lower() or "already assigned" in error_detail.lower():
-                print(f"  ✓ Service Principal already has Admin access")
-            else:
-                raise Exception(f"Invalid role assignment request: {error_detail}")
-        elif response.status_code == 404:
-            raise Exception(
-                f"Invalid Service Principal Object ID '{service_principal_object_id}'. "
-                "Verify DEPLOYMENT_SP_OBJECT_ID secret contains the Azure AD Object ID (not Client ID). "
-                "Find it in Azure Portal → Azure Active Directory → Enterprise Applications → search by Client ID → Object ID."
-            )
-        else:
-            raise Exception(f"Role assignment failed. Status: {response.status_code}, Response: {response.text}")
-            
     except requests.exceptions.Timeout:
         raise Exception("Request to Fabric API timed out while assigning workspace role")
-    except Exception as e:
-        if "Object ID" in str(e):
-            raise  # Re-raise with original message for configuration errors
-        raise Exception(f"Failed to add Service Principal as workspace admin: {str(e)}")
+    
+    if response.status_code == 200:
+        print(f"  ✓ Service Principal added as Admin successfully")
+    elif response.status_code == 400:
+        # Safely parse error details
+        error_detail = _parse_error_response(response, "Invalid role assignment request")
+        # Check if SP already has access
+        if "already exists" in error_detail.lower() or "already assigned" in error_detail.lower():
+            print(f"  ✓ Service Principal already has Admin access")
+        else:
+            raise Exception(f"Invalid role assignment request: {error_detail}")
+    elif response.status_code == 404:
+        raise Exception(
+            f"Invalid Service Principal Object ID '{service_principal_object_id}'. "
+            "Verify DEPLOYMENT_SP_OBJECT_ID secret contains the Azure AD Object ID (not Client ID). "
+            "Find it in Azure Portal → Azure Active Directory → Enterprise Applications → search by Client ID → Object ID."
+        )
+    else:
+        # Truncate long error responses
+        error_text = response.text[:500] if len(response.text) > 500 else response.text
+        raise Exception(f"Role assignment failed. Status: {response.status_code}, Response: {error_text}")
 
 
 def ensure_workspace_exists(
@@ -279,7 +263,10 @@ def ensure_workspace_exists(
         workspace_id = check_workspace_exists(workspace_name, token_credential)
         
         if workspace_id:
-            # Workspace exists, no need to create
+            # Workspace exists, ensure service principal has admin access
+            print(f"  ℹ Workspace already exists, ensuring service principal has admin access...")
+            add_workspace_admin(workspace_id, service_principal_object_id, token_credential)
+            print(f"  ✓ Workspace '{workspace_name}' is ready for deployment")
             return workspace_id
         
         # Workspace doesn't exist, create it
