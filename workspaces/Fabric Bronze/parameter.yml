@@ -17,21 +17,16 @@ find_replace:
       is_regex: "true"
       item_type: "SemanticModel"
 
-# TODO: Add lakehouse and workspace ID transformations once you have your Dev workspace IDs
-# Example entries (uncomment and update with actual IDs):
-#     - find_value: "your-dev-lakehouse-bronze-id"
-#       replace_value:
-#         _ALL_: "$items.Lakehouse.lakehouse_bronze.id"
-#       item_type: "Notebook"
-#     - find_value: "your-dev-lakehouse-silver-id"
-#       replace_value:
-#         _ALL_: "$items.Lakehouse.lakehouse_silver.id"
-#       item_type: "Notebook"
-#     - find_value: "your-dev-lakehouse-gold-id"
-#       replace_value:
-#         _ALL_: "$items.Lakehouse.lakehouse_gold.id"
-#       item_type: "Notebook"
-#     - find_value: "your-dev-workspace-id"
-#       replace_value:
-#         _ALL_: "$workspace.id"
-#       item_type: "Notebook"
+    # Replace workspace ID placeholder in CopyJobs
+    - find_value: "00000000-0000-0000-0000-000000000000"
+      replace_value:
+          _ALL_: "$workspace.id"
+      item_type: "CopyJob"
+      description: "Replace placeholder workspace ID with actual workspace ID"
+      
+    # Replace bronze lakehouse ID in CopyJobs
+    - find_value: "b892bcb4-b1d3-a9e0-4a9e-fac33bb0b654"
+      replace_value:
+          _ALL_: "$items.Lakehouse.lakehouse_bronze.id"
+      item_type: "CopyJob"
+      description: "Replace bronze lakehouse artifact ID with actual lakehouse ID"
