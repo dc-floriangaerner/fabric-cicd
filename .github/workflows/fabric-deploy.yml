@@ -55,75 +55,46 @@ jobs:
           echo "workspaces=$all_workspaces" >> $GITHUB_OUTPUT
           echo "Workspaces to deploy: $all_workspaces"
 
-  # Dev deployment job
+  # Deploy job - dynamically deploys to the triggered environment only
   # Triggers:
-  #   - Automatic: On push to main (deploys all workspaces)
-  #   - Manual: Via workflow_dispatch when 'dev' environment is selected (deploys all workspaces)
-  deploy-dev:
-    name: Deploy to Dev
+  #   - Dev: Automatic on push to main, or manual via workflow_dispatch
+  #   - Test/Prod: Manual only via workflow_dispatch
+  # Note: Test and Prod require manual approval if environment protection rules are configured
+  deploy:
+    name: Deploy to ${{ github.event_name == 'push' && 'Dev' || (inputs.environment == 'dev' && 'Dev') || (inputs.environment == 'test' && 'Test') || 'Production' }}
     runs-on: ubuntu-latest
     needs: get-workspaces
-    if: |
-      needs.get-workspaces.outputs.workspaces != '' &&
-      (github.event_name == 'push' || 
-       (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev'))
+    if: needs.get-workspaces.outputs.workspaces != ''
     environment:
-      name: dev
+      name: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
       url: https://app.fabric.microsoft.com
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy using composite action
-        uses: ./.github/actions/deploy-workspace
-        with:
-          environment: 'dev'
-          workspaces: ${{ needs.get-workspaces.outputs.workspaces }}
-          workspaces-directory: ${{ env.WORKSPACES_DIRECTORY }}
-          python-version: ${{ env.PYTHON_VERSION }}
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          FABRIC_CAPACITY_ID_DEV: ${{ secrets.FABRIC_CAPACITY_ID_DEV }}
-          DEPLOYMENT_SP_OBJECT_ID: ${{ secrets.DEPLOYMENT_SP_OBJECT_ID }}
-          FABRIC_ADMIN_GROUP_ID: ${{ secrets.FABRIC_ADMIN_GROUP_ID }}
-
-      - name: Deployment Summary
-        if: always()
+      - name: Set environment variables
+        id: set-env
         run: |
-          # Determine trigger type
           if [ "${{ github.event_name }}" == "push" ]; then
-            TRIGGER_TYPE="Automatic"
+            echo "environment=dev" >> $GITHUB_OUTPUT
+            echo "capacity_secret=FABRIC_CAPACITY_ID_DEV" >> $GITHUB_OUTPUT
+            echo "trigger_type=Automatic" >> $GITHUB_OUTPUT
           else
-            TRIGGER_TYPE="Manual"
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+            if [ "${{ inputs.environment }}" == "dev" ]; then
+              echo "capacity_secret=FABRIC_CAPACITY_ID_DEV" >> $GITHUB_OUTPUT
+            elif [ "${{ inputs.environment }}" == "test" ]; then
+              echo "capacity_secret=FABRIC_CAPACITY_ID_TEST" >> $GITHUB_OUTPUT
+            else
+              echo "capacity_secret=FABRIC_CAPACITY_ID_PROD" >> $GITHUB_OUTPUT
+            fi
+            echo "trigger_type=Manual" >> $GITHUB_OUTPUT
           fi
-          
-          # Generate deployment summary using reusable script
-          bash scripts/generate-deployment-summary.sh "dev" "$TRIGGER_TYPE" "${{ needs.get-workspaces.outputs.workspaces }}"
-
-  # Test deployment job
-  # Triggers:
-  #   - Manual only: Via workflow_dispatch when 'test' environment is selected
-  # Note: Requires manual approval if GitHub environment protection rules are configured
-  deploy-test:
-    name: Deploy to Test
-    runs-on: ubuntu-latest
-    needs: get-workspaces
-    if: |
-      needs.get-workspaces.outputs.workspaces != '' &&
-      github.event_name == 'workflow_dispatch' && inputs.environment == 'test'
-    environment:
-      name: test
-      url: https://app.fabric.microsoft.com
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Deploy using composite action
         uses: ./.github/actions/deploy-workspace
         with:
-          environment: 'test'
+          environment: ${{ steps.set-env.outputs.environment }}
           workspaces: ${{ needs.get-workspaces.outputs.workspaces }}
           workspaces-directory: ${{ env.WORKSPACES_DIRECTORY }}
           python-version: ${{ env.PYTHON_VERSION }}
@@ -131,9 +102,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          FABRIC_CAPACITY_ID_DEV: ${{ secrets.FABRIC_CAPACITY_ID_DEV }}
-          FABRIC_CAPACITY_ID_TEST: ${{ secrets.FABRIC_CAPACITY_ID_TEST }}
-          FABRIC_CAPACITY_ID_PROD: ${{ secrets.FABRIC_CAPACITY_ID_PROD }}
+          FABRIC_CAPACITY_ID: ${{ secrets[steps.set-env.outputs.capacity_secret] }}
           DEPLOYMENT_SP_OBJECT_ID: ${{ secrets.DEPLOYMENT_SP_OBJECT_ID }}
           FABRIC_ADMIN_GROUP_ID: ${{ secrets.FABRIC_ADMIN_GROUP_ID }}
 
@@ -141,45 +110,4 @@ jobs:
         if: always()
         run: |
           # Generate deployment summary using reusable script
-          bash scripts/generate-deployment-summary.sh "test" "Manual" "${{ needs.get-workspaces.outputs.workspaces }}"
-
-  # Production deployment job
-  # Triggers:
-  #   - Manual only: Via workflow_dispatch when 'prod' environment is selected
-  # Note: Requires manual approval if GitHub environment protection rules are configured
-  deploy-prod:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: get-workspaces
-    if: |
-      needs.get-workspaces.outputs.workspaces != '' &&
-      github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
-    environment:
-      name: prod
-      url: https://app.fabric.microsoft.com
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Deploy using composite action
-        uses: ./.github/actions/deploy-workspace
-        with:
-          environment: 'prod'
-          workspaces: ${{ needs.get-workspaces.outputs.workspaces }}
-          workspaces-directory: ${{ env.WORKSPACES_DIRECTORY }}
-          python-version: ${{ env.PYTHON_VERSION }}
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          FABRIC_CAPACITY_ID_DEV: ${{ secrets.FABRIC_CAPACITY_ID_DEV }}
-          FABRIC_CAPACITY_ID_TEST: ${{ secrets.FABRIC_CAPACITY_ID_TEST }}
-          FABRIC_CAPACITY_ID_PROD: ${{ secrets.FABRIC_CAPACITY_ID_PROD }}
-          DEPLOYMENT_SP_OBJECT_ID: ${{ secrets.DEPLOYMENT_SP_OBJECT_ID }}
-          FABRIC_ADMIN_GROUP_ID: ${{ secrets.FABRIC_ADMIN_GROUP_ID }}
-
-      - name: Deployment Summary
-        if: always()
-        run: |
-          # Generate deployment summary using reusable script
-          bash scripts/generate-deployment-summary.sh "prod" "Manual" "${{ needs.get-workspaces.outputs.workspaces }}"
+          bash scripts/generate-deployment-summary.sh "${{ steps.set-env.outputs.environment }}" "${{ steps.set-env.outputs.trigger_type }}" "${{ needs.get-workspaces.outputs.workspaces }}"
