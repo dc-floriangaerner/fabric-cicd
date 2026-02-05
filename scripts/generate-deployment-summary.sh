@@ -60,7 +60,7 @@ else
     echo "- **Duration**: ${duration}s" >> $GITHUB_STEP_SUMMARY
 fi
 
-echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+echo "- **Status**: ${JOB_STATUS}" >> $GITHUB_STEP_SUMMARY
 echo "- **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
 echo "" >> $GITHUB_STEP_SUMMARY
 

@@ -111,3 +111,5 @@ jobs:
         run: |
           # Generate deployment summary using reusable script
           bash scripts/generate-deployment-summary.sh "${{ steps.set-env.outputs.environment }}" "${{ steps.set-env.outputs.trigger_type }}" "${{ needs.get-workspaces.outputs.workspaces }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
