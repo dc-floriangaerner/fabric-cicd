@@ -92,68 +92,15 @@ jobs:
       - name: Deployment Summary
         if: always()
         run: |
-          echo "### Deployment Summary - Dev" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
           # Determine trigger type
           if [ "${{ github.event_name }}" == "push" ]; then
-            echo "- **Trigger Type**: Automatic" >> $GITHUB_STEP_SUMMARY
+            TRIGGER_TYPE="Automatic"
           else
-            echo "- **Trigger Type**: Manual" >> $GITHUB_STEP_SUMMARY
+            TRIGGER_TYPE="Manual"
           fi
           
-          # Read deployment results from JSON file if it exists
-          if [ -f "deployment-results.json" ]; then
-            total_workspaces=$(jq -r '.total_workspaces' deployment-results.json)
-            successful_count=$(jq -r '.successful_count' deployment-results.json)
-            failed_count=$(jq -r '.failed_count' deployment-results.json)
-            duration=$(jq -r '.duration' deployment-results.json)
-          else
-            # Fallback to counting from input
-            deployed_workspaces="${{ needs.get-workspaces.outputs.workspaces }}"
-            if [ -n "$deployed_workspaces" ]; then
-              IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
-              total_workspaces=${#WORKSPACES[@]}
-            else
-              total_workspaces=0
-            fi
-            successful_count=0
-            failed_count=$total_workspaces
-            duration="N/A"
-          fi
-          
-          echo "- **Environment**: dev" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total Workspaces**: $total_workspaces" >> $GITHUB_STEP_SUMMARY
-          echo "- **Successful**: $successful_count" >> $GITHUB_STEP_SUMMARY
-          echo "- **Failed**: $failed_count" >> $GITHUB_STEP_SUMMARY
-          # Format duration to 2 decimal places if it's a number
-          if [[ "$duration" =~ ^[0-9]+\.?[0-9]*$ ]]; then
-            formatted_duration=$(printf "%.2f" "$duration")
-            echo "- **Duration**: ${formatted_duration}s" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Duration**: ${duration}s" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # List workspaces with individual status from JSON
-          if [ -f "deployment-results.json" ] && [ "$total_workspaces" -gt 0 ]; then
-            echo "#### Deployment Results:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Read and display each workspace status
-            jq -r '.workspaces[] | "\(.status)|\(.full_name)|\(.error)"' deployment-results.json | while IFS='|' read -r status full_name error; do
-              if [ "$status" == "success" ]; then
-                echo "- ✓ $full_name" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "- ✗ $full_name" >> $GITHUB_STEP_SUMMARY
-                if [ -n "$error" ]; then
-                  echo "  - Error: $error" >> $GITHUB_STEP_SUMMARY
-                fi
-              fi
-            done
-          fi
+          # Generate deployment summary using reusable script
+          bash scripts/generate-deployment-summary.sh "dev" "$TRIGGER_TYPE" "${{ needs.get-workspaces.outputs.workspaces }}"
 
   # Test deployment job
   # Triggers:
@@ -193,62 +140,8 @@ jobs:
       - name: Deployment Summary
         if: always()
         run: |
-          echo "### Deployment Summary - Test" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger Type**: Manual" >> $GITHUB_STEP_SUMMARY
-          
-          # Read deployment results from JSON file if it exists
-          if [ -f "deployment-results.json" ]; then
-            total_workspaces=$(jq -r '.total_workspaces' deployment-results.json)
-            successful_count=$(jq -r '.successful_count' deployment-results.json)
-            failed_count=$(jq -r '.failed_count' deployment-results.json)
-            duration=$(jq -r '.duration' deployment-results.json)
-          else
-            # Fallback to counting from input
-            deployed_workspaces="${{ needs.get-workspaces.outputs.workspaces }}"
-            if [ -n "$deployed_workspaces" ]; then
-              IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
-              total_workspaces=${#WORKSPACES[@]}
-            else
-              total_workspaces=0
-            fi
-            successful_count=0
-            failed_count=$total_workspaces
-            duration="N/A"
-          fi
-          
-          echo "- **Environment**: test" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total Workspaces**: $total_workspaces" >> $GITHUB_STEP_SUMMARY
-          echo "- **Successful**: $successful_count" >> $GITHUB_STEP_SUMMARY
-          echo "- **Failed**: $failed_count" >> $GITHUB_STEP_SUMMARY
-          # Format duration to 2 decimal places if it's a number
-          if [[ "$duration" =~ ^[0-9]+\.?[0-9]*$ ]]; then
-            formatted_duration=$(printf "%.2f" "$duration")
-            echo "- **Duration**: ${formatted_duration}s" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Duration**: ${duration}s" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # List workspaces with individual status from JSON
-          if [ -f "deployment-results.json" ] && [ "$total_workspaces" -gt 0 ]; then
-            echo "#### Deployment Results:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Read and display each workspace status
-            jq -r '.workspaces[] | "\(.status)|\(.full_name)|\(.error)"' deployment-results.json | while IFS='|' read -r status full_name error; do
-              if [ "$status" == "success" ]; then
-                echo "- ✓ $full_name" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "- ✗ $full_name" >> $GITHUB_STEP_SUMMARY
-                if [ -n "$error" ]; then
-                  echo "  - Error: $error" >> $GITHUB_STEP_SUMMARY
-                fi
-              fi
-            done
-          fi
+          # Generate deployment summary using reusable script
+          bash scripts/generate-deployment-summary.sh "test" "Manual" "${{ needs.get-workspaces.outputs.workspaces }}"
 
   # Production deployment job
   # Triggers:
@@ -288,59 +181,5 @@ jobs:
       - name: Deployment Summary
         if: always()
         run: |
-          echo "### Deployment Summary - Production" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger Type**: Manual" >> $GITHUB_STEP_SUMMARY
-          
-          # Read deployment results from JSON file if it exists
-          if [ -f "deployment-results.json" ]; then
-            total_workspaces=$(jq -r '.total_workspaces' deployment-results.json)
-            successful_count=$(jq -r '.successful_count' deployment-results.json)
-            failed_count=$(jq -r '.failed_count' deployment-results.json)
-            duration=$(jq -r '.duration' deployment-results.json)
-          else
-            # Fallback to counting from input
-            deployed_workspaces="${{ needs.get-workspaces.outputs.workspaces }}"
-            if [ -n "$deployed_workspaces" ]; then
-              IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
-              total_workspaces=${#WORKSPACES[@]}
-            else
-              total_workspaces=0
-            fi
-            successful_count=0
-            failed_count=$total_workspaces
-            duration="N/A"
-          fi
-          
-          echo "- **Environment**: prod" >> $GITHUB_STEP_SUMMARY
-          echo "- **Total Workspaces**: $total_workspaces" >> $GITHUB_STEP_SUMMARY
-          echo "- **Successful**: $successful_count" >> $GITHUB_STEP_SUMMARY
-          echo "- **Failed**: $failed_count" >> $GITHUB_STEP_SUMMARY
-          # Format duration to 2 decimal places if it's a number
-          if [[ "$duration" =~ ^[0-9]+\.?[0-9]*$ ]]; then
-            formatted_duration=$(printf "%.2f" "$duration")
-            echo "- **Duration**: ${formatted_duration}s" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Duration**: ${duration}s" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Completed**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # List workspaces with individual status from JSON
-          if [ -f "deployment-results.json" ] && [ "$total_workspaces" -gt 0 ]; then
-            echo "#### Deployment Results:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Read and display each workspace status
-            jq -r '.workspaces[] | "\(.status)|\(.full_name)|\(.error)"' deployment-results.json | while IFS='|' read -r status full_name error; do
-              if [ "$status" == "success" ]; then
-                echo "- ✓ $full_name" >> $GITHUB_STEP_SUMMARY
-              else
-                echo "- ✗ $full_name" >> $GITHUB_STEP_SUMMARY
-                if [ -n "$error" ]; then
-                  echo "  - Error: $error" >> $GITHUB_STEP_SUMMARY
-                fi
-              fi
-            done
-          fi
+          # Generate deployment summary using reusable script
+          bash scripts/generate-deployment-summary.sh "prod" "Manual" "${{ needs.get-workspaces.outputs.workspaces }}"
