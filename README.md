@@ -210,14 +210,13 @@ graph LR
 For each workspace in the deployment:
 
 1. **Get Workspaces** - Identify all workspaces for deployment
-2. **Validate** - Run static analysis on JSON, YAML, and Python files
-3. **Authenticate** - Login using Service Principal (ClientSecretCredential)
-4. **Capture State** - Store current workspace state for rollback
-5. **Transform IDs** - Replace environment-specific IDs based on workspace `parameter.yml`
-6. **Deploy Items** - Publish items using `fabric-cicd` library
-7. **Clean Up Orphans** - Remove items not in repository
-8. **Rollback on Failure** - If any workspace fails, rollback all previously deployed workspaces
-9. **Report Status** - Display deployment summary in GitHub Actions
+2. **Authenticate** - Login using Service Principal (ClientSecretCredential)
+3. **Capture State** - Store current workspace state for rollback
+4. **Transform IDs** - Replace environment-specific IDs based on workspace `parameter.yml`
+5. **Deploy Items** - Publish items using `fabric-cicd` library
+6. **Clean Up Orphans** - Remove items not in repository
+7. **Rollback on Failure** - If any workspace fails, rollback all previously deployed workspaces
+8. **Report Status** - Display deployment summary in GitHub Actions
 
 ### Atomic Deployment with Rollback
 
