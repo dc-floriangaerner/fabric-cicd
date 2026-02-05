@@ -14,7 +14,6 @@ This repository demonstrates best practices for deploying Microsoft Fabric works
 - **Multi-stage Deployment**: Dev → Test → Production with approval gates
 - **Git-based Deployment**: Single source of truth in `main` branch
 - **Dynamic Workspace Naming**: Automatic stage prefixes ([D], [T], [P])
-- **Selective Deployment**: Only deploy workspaces with detected changes
 - **Atomic Rollback**: All-or-nothing deployment with automatic rollback on failure
 - **ID Transformation**: Automatic adjustment of workspace-specific references
 
@@ -163,7 +162,7 @@ git push origin feature/my-feature
 1. Create a Pull Request to `main` branch
 2. Wait for review and approval
 3. Merge PR to `main`
-4. **Automatic deployment to Dev** starts immediately (only for changed workspaces)
+4. **Automatic deployment to Dev** starts immediately
 
 
 ### 5. Promote to Test/Production
@@ -179,16 +178,14 @@ After successful Dev deployment and manual verification:
    - `prod` - Production environment
 4. Click **Run workflow** button
 
-Manual deployments will deploy all workspaces, regardless of changes.
-
 ## CI/CD Pipeline
 
 ### Workflow Stages
 
 ```mermaid
 graph LR
-    A[PR Merged to Main] --> B[Detect Changed Workspaces]
-    B --> C[Auto Deploy Changed Workspaces to Dev]
+    A[PR Merged to Main] --> B[Get All Workspaces]
+    B --> C[Auto Deploy All Workspaces to Dev]
     C --> D{Verify Dev}
     D -->|Success| E[Manual: Run Workflow]
     E --> F{Select Environment}
@@ -200,27 +197,19 @@ graph LR
     K -->|Prod| H
 ```
 
-### Selective Deployment
-
-The pipeline automatically detects which workspaces have changed:
-
-- **Automatic (Dev)**: Only deploys workspaces with changes in `workspaces/**` paths
-- **Manual (Test/Prod)**: Deploys all workspaces
-- **Atomic Rollback**: If any workspace deployment fails, all previously deployed workspaces in that run are rolled back
-
 ### Deployment Environments
 
-| Environment | Trigger | Workspace Selection | Use Case |
-|-------------|---------|---------------------|----------|
-| **Dev** | Auto on merge to `main` | Changed workspaces only | Automatic deployment for rapid iteration |
-| **Test** | Manual workflow dispatch | All workspaces | After Dev verification |
-| **Production** | Manual workflow dispatch | All workspaces | After Test verification |
+| Environment | Trigger | Use Case |
+|-------------|---------|----------|
+| **Dev** | Auto on merge to `main` | Automatic deployment for rapid iteration |
+| **Test** | Manual workflow dispatch | After Dev verification |
+| **Production** | Manual workflow dispatch | After Test verification |
 
 ### Deployment Process
 
 For each workspace in the deployment:
 
-1. **Detect Workspaces** - Identify changed workspaces (auto) or all workspaces (manual)
+1. **Get Workspaces** - Identify all workspaces for deployment
 2. **Validate** - Run static analysis on JSON, YAML, and Python files
 3. **Authenticate** - Login using Service Principal (ClientSecretCredential)
 4. **Capture State** - Store current workspace state for rollback
@@ -357,11 +346,6 @@ This allows each workspace to have different transformation rules independent of
 **Orphan items not removed**
 - Check workspace `parameter.yml` doesn't have `skip_orphan_cleanup: true`
 - Verify item is in scope for deployment
-
-**Deployment triggers for non-workspace changes**
-- Workflow only triggers on changes in `workspaces/**` paths
-- Changes to `.github/`, `scripts/`, `README.md` etc. will NOT trigger automatic deployment
-- Use manual workflow dispatch to deploy without workspace changes
 
 **Rollback fails after deployment error**
 - Review deployment logs to identify which workspace failed

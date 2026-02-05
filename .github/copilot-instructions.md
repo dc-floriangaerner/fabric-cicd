@@ -31,8 +31,6 @@ workspaces/
 - Test: `[T] <folder-name>` (e.g., `[T] Fabric Blueprint`)
 - Prod: `[P] <folder-name>` (e.g., `[P] Fabric Blueprint`)
 
-**Selective Deployment**: Only workspaces with changes in `workspaces/**` paths trigger automatic Dev deployments. Manual deployments deploy all workspaces.
-
 **Atomic Rollback**: If any workspace deployment fails, all previously deployed workspaces in that run are automatically rolled back.
 
 ## Git Integration & CI/CD Strategy
@@ -92,7 +90,6 @@ This architecture uses **Git-based deployments with Build environments** for con
 - **Commit related changes together**: Group changes that must deploy atomically across workspaces
 - **Private development branches**: Each developer works in isolated branch/workspace
 - **Pull request workflow**: All changes to main require PR approval
-- **Selective deployment**: Only changed workspaces deploy automatically to Dev
 - **Atomic operations**: All workspace deployments succeed or all are rolled back
 
 ## Commands
@@ -116,7 +113,7 @@ python scripts/deploy-to-fabric.py \
   --workspace_folders "Fabric Blueprint,Analytics Hub"
 
 # Deployment Commands (via GitHub Actions)
-# Deploy to Dev: Automatic on merge to main (changed workspaces only)
+# Deploy to Dev: Automatic on merge to main
 # Deploy to Test: Manual workflow dispatch (select "test" environment)
 # Deploy to Production: Manual workflow dispatch (select "prod" environment)
 
@@ -126,10 +123,9 @@ python -m json.tool "workspaces/Fabric Blueprint/1_Bronze/lakehouse_bronze.Lakeh
 
 ### Workflow Triggers
 
-- **Dev Environment**: Automatically deploys when PR is merged to `main` with changes in `workspaces/**` paths (only changed workspaces)
-- **Test Environment**: Manual trigger via GitHub Actions (select "test" environment, deploys all workspaces)
-- **Production Environment**: Manual trigger via GitHub Actions (select "prod" environment, deploys all workspaces)
-- **Non-workspace changes**: Changes to `.github/`, `scripts/`, documentation do NOT trigger automatic deployment
+- **Dev Environment**: Automatically deploys when PR is merged to `main`
+- **Test Environment**: Manual trigger via GitHub Actions (select "test" environment)
+- **Production Environment**: Manual trigger via GitHub Actions (select "prod" environment)
 
 ## Fabric MCP Server Integration
 

@@ -239,7 +239,7 @@ Create three environments for your deployments:
 1. Go to **Settings** → **Environments**
 2. Click **New environment**
 3. Create three environments:
-   - `dev` (auto-deploys on merge to main for changed workspaces)
+   - `dev` (auto-deploys on merge to main)
    - `test` (manual deployment via workflow dispatch)
    - `production` (manual deployment via workflow dispatch)
 
@@ -325,7 +325,6 @@ git push origin feature/test-deployment
 2. Create Pull Request to `main`
 3. Merge the PR
 4. Watch the **Actions** tab for automatic deployment to Dev
-5. Pipeline will detect changed workspace and deploy only that workspace
 
 ### Test Manual Deployment to Test
 
@@ -365,25 +364,16 @@ For each deployed workspace (e.g., "[D] Fabric Blueprint"):
 2. Expand the deployment step (e.g., "Deploy to Dev Workspaces")
 3. Verify:
    - Authentication succeeded
-   - Changed workspaces detected (for auto deployments)
    - Items published for each workspace
    - No errors or rollback triggered
 
 ## Deployment Workflow Summary
 
-| Environment | Trigger | Workspace Selection | When to Use |
-|------------|---------|---------------------|-------------|
-| **Dev** | Automatic on merge to `main` with `workspaces/**` changes | Changed workspaces only | After PR approval and merge |
-| **Test** | Manual workflow dispatch | All workspaces | After Dev deployment verified |
-| **Production** | Manual workflow dispatch | All workspaces | After Test deployment verified |
-
-### Change Detection
-
-The pipeline automatically detects which workspaces have changed:
-
-- **Push to main**: Only workspaces with file changes in `workspaces/<workspace-name>/**` are deployed
-- **Manual trigger**: All workspaces are deployed regardless of changes
-- **Non-workspace changes**: Changes to `.github/`, `scripts/`, `README.md` do NOT trigger deployments
+| Environment | Trigger | When to Use |
+|------------|---------|-------------|
+| **Dev** | Automatic on merge to `main` | After PR approval and merge |
+| **Test** | Manual workflow dispatch | After Dev deployment verified |
+| **Production** | Manual workflow dispatch | After Test deployment verified |
 
 ### Atomic Rollback
 
@@ -431,15 +421,6 @@ This ensures environments remain in a consistent state.
 - Each workspace folder must contain a `parameter.yml` file
 - Verify folder structure: `workspaces/<workspace-name>/parameter.yml`
 
-### Deployment Not Triggered
-
-**Error**: Pipeline doesn't run after merge to main
-
-**Solution**:
-- Check if changes were made in `workspaces/**` paths (required for auto-trigger)
-- Changes to `.github/`, `scripts/`, documentation do NOT trigger automatic deployment
-- Use manual workflow dispatch to deploy without workspace changes
-
 ### Item Deployment Failed
 
 **Error**: `Failed to publish item: <item-name>`
@@ -459,15 +440,6 @@ This ensures environments remain in a consistent state.
 - Check Service Principal permissions on all workspaces
 - May require manual restoration of workspace state
 - Verify workspace items can be modified/deleted by Service Principal
-
-### Multiple Workspaces, Only One Deployed
-
-**Error**: Only first workspace deployed, others skipped
-
-**Solution**:
-- This may be expected behavior if only one workspace changed (auto deployment)
-- For manual deployment, verify all workspaces have `parameter.yml` files
-- Check logs for workspace detection output
 
 ## Adding New Workspaces
 
@@ -509,7 +481,7 @@ git commit -m "feat: add New Workspace"
 git push
 ```
 
-The pipeline will automatically detect and deploy the new workspace on merge to main.
+The pipeline will automatically deploy the new workspace on merge to main.
 
 ## Next Steps
 

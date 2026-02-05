@@ -1,18 +1,15 @@
 name: Deploy to Microsoft Fabric
 
 # Workflow triggers:
-# 1. Automatic: Push to main branch with changes in workspaces/** paths
-#    - Deploys ONLY changed workspaces to Dev environment
-#    - Changes outside workspaces/ directory do NOT trigger deployment
+# 1. Automatic: Push to main branch
+#    - Deploys all workspaces to Dev environment
 # 2. Manual: workflow_dispatch with environment selection (dev/test/prod)
-#    - Deploys ALL workspaces to selected environment
+#    - Deploys all workspaces to selected environment
 #    - Useful for promoting to Test/Prod or re-deploying Dev
 on:
   push:
     branches:
       - main
-    paths:
-      - 'workspaces/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -29,60 +26,31 @@ env:
   WORKSPACES_DIRECTORY: 'workspaces'
 
 jobs:
-  # Change detection job: Determines which workspaces to deploy
-  # - For automatic triggers (push): Returns only workspace folders with file changes
-  # - For manual triggers (workflow_dispatch): Returns all workspace folders
-  # Output 'workspaces': Comma-separated list of workspace folders to deploy
-  # Output 'all_workspaces': Comma-separated list of all available workspace folders
-  detect-changes:
-    name: Detect Changed Workspaces
+  # Get all workspaces job: Retrieves all workspace folders for deployment
+  # Output 'workspaces': Comma-separated list of all workspace folders to deploy
+  get-workspaces:
+    name: Get Workspaces
     runs-on: ubuntu-latest
     outputs:
-      workspaces: ${{ steps.detect.outputs.workspaces }}
-      all_workspaces: ${{ steps.detect.outputs.all_workspaces }}
+      workspaces: ${{ steps.get.outputs.workspaces }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
-      - name: Detect changed workspaces
-        id: detect
+      - name: Get all workspaces
+        id: get
         run: |
           # Check if workspaces directory exists
           if [ ! -d "${{ env.WORKSPACES_DIRECTORY }}" ]; then
             echo "Error: Workspaces directory '${{ env.WORKSPACES_DIRECTORY }}' does not exist." >&2
-            echo "all_workspaces=" >> "$GITHUB_OUTPUT"
             echo "workspaces=" >> "$GITHUB_OUTPUT"
             exit 1
           fi
           
           # Get all workspace folders
           all_workspaces=$(find "${{ env.WORKSPACES_DIRECTORY }}" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort | tr '\n' ',' | sed 's/,$//')
-          echo "all_workspaces=$all_workspaces" >> $GITHUB_OUTPUT
-          echo "All workspaces: $all_workspaces"
-          
-          # For manual trigger, deploy all workspaces
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "Manual trigger detected - deploying all workspaces"
-            echo "workspaces=$all_workspaces" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # For push events, detect changed workspaces
-          changed_files=$(git diff --name-only HEAD~1 HEAD)
-          echo "Changed files:"
-          echo "$changed_files"
-          
-          changed_workspaces=$(echo "$changed_files" | grep "^${{ env.WORKSPACES_DIRECTORY }}/" | cut -d'/' -f2 | sort -u | tr '\n' ',' | sed 's/,$//')
-          
-          if [ -z "$changed_workspaces" ]; then
-            echo "No workspace changes detected"
-            echo "workspaces=" >> $GITHUB_OUTPUT
-          else
-            echo "Changed workspaces: $changed_workspaces"
-            echo "workspaces=$changed_workspaces" >> $GITHUB_OUTPUT
-          fi
+          echo "workspaces=$all_workspaces" >> $GITHUB_OUTPUT
+          echo "Workspaces to deploy: $all_workspaces"
 
   # Validation job: Validates all workspace files before deployment
   # - Checks JSON syntax in all .json files
@@ -93,8 +61,8 @@ jobs:
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.workspaces != ''
+    needs: get-workspaces
+    if: needs.get-workspaces.outputs.workspaces != ''
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -157,15 +125,14 @@ jobs:
 
   # Dev deployment job
   # Triggers:
-  #   - Automatic: On push to main with changes in workspaces/** (deploys only changed workspaces)
+  #   - Automatic: On push to main (deploys all workspaces)
   #   - Manual: Via workflow_dispatch when 'dev' environment is selected (deploys all workspaces)
-  # Workspace selection: Changed workspaces only for auto-trigger, all workspaces for manual trigger
   deploy-dev:
     name: Deploy to Dev
     runs-on: ubuntu-latest
-    needs: [detect-changes, static-analysis]
+    needs: [get-workspaces, static-analysis]
     if: |
-      needs.detect-changes.outputs.workspaces != '' &&
+      needs.get-workspaces.outputs.workspaces != '' &&
       (github.event_name == 'push' || 
        (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev'))
     environment:
@@ -179,7 +146,7 @@ jobs:
         uses: ./.github/actions/deploy-workspace
         with:
           environment: 'dev'
-          workspaces: ${{ needs.detect-changes.outputs.workspaces }}
+          workspaces: ${{ needs.get-workspaces.outputs.workspaces }}
           workspaces-directory: ${{ env.WORKSPACES_DIRECTORY }}
           python-version: ${{ env.PYTHON_VERSION }}
         env:
@@ -198,33 +165,9 @@ jobs:
           
           # Determine trigger type
           if [ "${{ github.event_name }}" == "push" ]; then
-            echo "- **Trigger Type**: Automatic (changed workspaces)" >> $GITHUB_STEP_SUMMARY
-            
-            # Show excluded workspaces
-            all_workspaces="${{ needs.detect-changes.outputs.all_workspaces }}"
-            deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
-            
-            if [ -n "$all_workspaces" ] && [ -n "$deployed_workspaces" ]; then
-              IFS=',' read -ra ALL <<< "$all_workspaces"
-              IFS=',' read -ra DEPLOYED <<< "$deployed_workspaces"
-              
-              excluded=""
-              for workspace in "${ALL[@]}"; do
-                if [[ ! " ${DEPLOYED[@]} " =~ " ${workspace} " ]]; then
-                  if [ -z "$excluded" ]; then
-                    excluded="$workspace"
-                  else
-                    excluded="$excluded, $workspace"
-                  fi
-                fi
-              done
-              
-              if [ -n "$excluded" ]; then
-                echo "- **Excluded Workspaces**: $excluded (no changes detected)" >> $GITHUB_STEP_SUMMARY
-              fi
-            fi
+            echo "- **Trigger Type**: Automatic" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- **Trigger Type**: Manual (all workspaces)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Trigger Type**: Manual" >> $GITHUB_STEP_SUMMARY
           fi
           
           # Read deployment results from JSON file if it exists
@@ -235,7 +178,7 @@ jobs:
             duration=$(jq -r '.duration' deployment-results.json)
           else
             # Fallback to counting from input
-            deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
+            deployed_workspaces="${{ needs.get-workspaces.outputs.workspaces }}"
             if [ -n "$deployed_workspaces" ]; then
               IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
               total_workspaces=${#WORKSPACES[@]}
@@ -283,14 +226,13 @@ jobs:
   # Test deployment job
   # Triggers:
   #   - Manual only: Via workflow_dispatch when 'test' environment is selected
-  # Workspace selection: Always deploys all workspaces (not just changed ones)
   # Note: Requires manual approval if GitHub environment protection rules are configured
   deploy-test:
     name: Deploy to Test
     runs-on: ubuntu-latest
-    needs: [detect-changes, static-analysis]
+    needs: [get-workspaces, static-analysis]
     if: |
-      needs.detect-changes.outputs.workspaces != '' &&
+      needs.get-workspaces.outputs.workspaces != '' &&
       github.event_name == 'workflow_dispatch' && inputs.environment == 'test'
     environment:
       name: test
@@ -303,7 +245,7 @@ jobs:
         uses: ./.github/actions/deploy-workspace
         with:
           environment: 'test'
-          workspaces: ${{ needs.detect-changes.outputs.workspaces }}
+          workspaces: ${{ needs.get-workspaces.outputs.workspaces }}
           workspaces-directory: ${{ env.WORKSPACES_DIRECTORY }}
           python-version: ${{ env.PYTHON_VERSION }}
         env:
@@ -321,7 +263,7 @@ jobs:
         run: |
           echo "### Deployment Summary - Test" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger Type**: Manual (all workspaces)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger Type**: Manual" >> $GITHUB_STEP_SUMMARY
           
           # Read deployment results from JSON file if it exists
           if [ -f "deployment-results.json" ]; then
@@ -331,7 +273,7 @@ jobs:
             duration=$(jq -r '.duration' deployment-results.json)
           else
             # Fallback to counting from input
-            deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
+            deployed_workspaces="${{ needs.get-workspaces.outputs.workspaces }}"
             if [ -n "$deployed_workspaces" ]; then
               IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
               total_workspaces=${#WORKSPACES[@]}
@@ -379,14 +321,13 @@ jobs:
   # Production deployment job
   # Triggers:
   #   - Manual only: Via workflow_dispatch when 'prod' environment is selected
-  # Workspace selection: Always deploys all workspaces (not just changed ones)
   # Note: Requires manual approval if GitHub environment protection rules are configured
   deploy-prod:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [detect-changes, static-analysis]
+    needs: [get-workspaces, static-analysis]
     if: |
-      needs.detect-changes.outputs.workspaces != '' &&
+      needs.get-workspaces.outputs.workspaces != '' &&
       github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
     environment:
       name: prod
@@ -399,7 +340,7 @@ jobs:
         uses: ./.github/actions/deploy-workspace
         with:
           environment: 'prod'
-          workspaces: ${{ needs.detect-changes.outputs.workspaces }}
+          workspaces: ${{ needs.get-workspaces.outputs.workspaces }}
           workspaces-directory: ${{ env.WORKSPACES_DIRECTORY }}
           python-version: ${{ env.PYTHON_VERSION }}
         env:
@@ -417,7 +358,7 @@ jobs:
         run: |
           echo "### Deployment Summary - Production" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger Type**: Manual (all workspaces)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger Type**: Manual" >> $GITHUB_STEP_SUMMARY
           
           # Read deployment results from JSON file if it exists
           if [ -f "deployment-results.json" ]; then
@@ -427,7 +368,7 @@ jobs:
             duration=$(jq -r '.duration' deployment-results.json)
           else
             # Fallback to counting from input
-            deployed_workspaces="${{ needs.detect-changes.outputs.workspaces }}"
+            deployed_workspaces="${{ needs.get-workspaces.outputs.workspaces }}"
             if [ -n "$deployed_workspaces" ]; then
               IFS=',' read -ra WORKSPACES <<< "$deployed_workspaces"
               total_workspaces=${#WORKSPACES[@]}
