@@ -13,9 +13,13 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
-from fabric_cicd import deploy_with_config, change_log_level
+from fabric_cicd import deploy_with_config, change_log_level, append_feature_flag
 from fabric_workspace_manager import ensure_workspace_exists
 import yaml
+
+# Enable experimental features for config-based deployment
+append_feature_flag("enable_experimental_features")
+append_feature_flag("enable_config_deploy")
 
 # Constants
 VALID_ENVIRONMENTS = {"dev", "test", "prod"}
