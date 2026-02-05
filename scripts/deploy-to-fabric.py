@@ -174,16 +174,7 @@ def main():
             token_credential = DefaultAzureCredential()
         
         # Get workspace creation configuration from environment
-        # First check unified FABRIC_CAPACITY_ID, then fall back to environment-specific variables
         capacity_id = os.getenv("FABRIC_CAPACITY_ID")
-        if not capacity_id:
-            if environment.lower() == "dev":
-                capacity_id = os.getenv("FABRIC_CAPACITY_ID_DEV")
-            elif environment.lower() == "test":
-                capacity_id = os.getenv("FABRIC_CAPACITY_ID_TEST")
-            elif environment.lower() == "prod":
-                capacity_id = os.getenv("FABRIC_CAPACITY_ID_PROD")
-        
         service_principal_object_id = os.getenv("DEPLOYMENT_SP_OBJECT_ID")
         entra_admin_group_id = os.getenv("FABRIC_ADMIN_GROUP_ID")
         
