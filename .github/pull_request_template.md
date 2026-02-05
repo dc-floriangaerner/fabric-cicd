@@ -29,7 +29,6 @@
 ## Testing
 <!-- Describe how these changes were tested -->
 - [ ] Tested in private development workspace
-- [ ] Validated locally with static analysis
 - [ ] Verified notebook execution
 - [ ] Checked data pipeline functionality
 - [ ] Reviewed semantic model connections
