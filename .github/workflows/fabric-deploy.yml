@@ -29,42 +29,15 @@ env:
   WORKSPACES_DIRECTORY: 'workspaces'
 
 jobs:
-  # Get all workspaces job: Retrieves all workspace folders for deployment
-  # Output 'workspaces': Comma-separated list of all workspace folders to deploy
-  get-workspaces:
-    name: Get Workspaces
-    runs-on: ubuntu-latest
-    outputs:
-      workspaces: ${{ steps.get.outputs.workspaces }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Get all workspaces
-        id: get
-        run: |
-          # Check if workspaces directory exists
-          if [ ! -d "${{ env.WORKSPACES_DIRECTORY }}" ]; then
-            echo "Error: Workspaces directory '${{ env.WORKSPACES_DIRECTORY }}' does not exist." >&2
-            echo "workspaces=" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-          
-          # Get all workspace folders
-          all_workspaces=$(find "${{ env.WORKSPACES_DIRECTORY }}" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort | tr '\n' ',' | sed 's/,$//')
-          echo "workspaces=$all_workspaces" >> $GITHUB_OUTPUT
-          echo "Workspaces to deploy: $all_workspaces"
-
   # Deploy job - dynamically deploys to the triggered environment only
   # Triggers:
   #   - Dev: Automatic on push to main, or manual via workflow_dispatch
   #   - Test/Prod: Manual only via workflow_dispatch
   # Note: Test and Prod require manual approval if environment protection rules are configured
+  # Note: Workspace discovery happens automatically in the Python deployment script
   deploy:
     name: Deploy to ${{ github.event_name == 'push' && 'Dev' || inputs.environment == 'dev' && 'Dev' || inputs.environment == 'test' && 'Test' || 'Production' }}
     runs-on: ubuntu-latest
-    needs: get-workspaces
-    if: needs.get-workspaces.outputs.workspaces != ''
     environment:
       name: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
       url: https://app.fabric.microsoft.com
@@ -108,8 +81,7 @@ jobs:
         run: |
           python -u scripts/deploy-to-fabric.py \
             --workspaces_directory "${{ env.WORKSPACES_DIRECTORY }}" \
-            --environment "${{ steps.set-env.outputs.environment }}" \
-            --workspace_folders "${{ needs.get-workspaces.outputs.workspaces }}"
+            --environment "${{ steps.set-env.outputs.environment }}"
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -122,6 +94,6 @@ jobs:
         if: always()
         run: |
           # Generate deployment summary using reusable script
-          bash scripts/generate-deployment-summary.sh "${{ steps.set-env.outputs.environment }}" "${{ steps.set-env.outputs.trigger_type }}" "${{ needs.get-workspaces.outputs.workspaces }}"
+          bash scripts/generate-deployment-summary.sh "${{ steps.set-env.outputs.environment }}" "${{ steps.set-env.outputs.trigger_type }}"
         env:
           JOB_STATUS: ${{ job.status }}

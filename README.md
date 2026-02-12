@@ -184,17 +184,16 @@ After successful Dev deployment and manual verification:
 
 ```mermaid
 graph LR
-    A[PR Merged to Main] --> B[Get All Workspaces]
-    B --> C[Auto Deploy All Workspaces to Dev]
-    C --> D{Verify Dev}
-    D -->|Success| E[Manual: Run Workflow]
-    E --> F{Select Environment}
-    F -->|Test| G[Deploy All Workspaces to Test]
-    F -->|Prod| H[Deploy All Workspaces to Prod]
-    G --> I{Verify Test}
-    I -->|Success| J[Manual: Run Workflow]
-    J --> K{Select Environment}
-    K -->|Prod| H
+    A[PR Merged to Main] --> B[Auto Deploy All Workspaces to Dev]
+    B --> C{Verify Dev}
+    C -->|Success| D[Manual: Run Workflow]
+    D --> E{Select Environment}
+    E -->|Test| F[Deploy All Workspaces to Test]
+    E -->|Prod| G[Deploy All Workspaces to Prod]
+    F --> H{Verify Test}
+    H -->|Success| I[Manual: Run Workflow]
+    I --> J{Select Environment}
+    J -->|Prod| G
 ```
 
 ### Deployment Environments
@@ -209,7 +208,7 @@ graph LR
 
 For each workspace in the deployment:
 
-1. **Get Workspaces** - Identify all workspaces for deployment
+1. **Auto-Discover Workspaces** - Automatically discovers all workspace folders with `config.yml`
 2. **Authenticate** - Login using Service Principal (ClientSecretCredential)
 3. **Capture State** - Store current workspace state for rollback
 4. **Transform IDs** - Replace environment-specific IDs based on workspace `parameter.yml`

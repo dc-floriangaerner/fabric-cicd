@@ -17,35 +17,27 @@ from fabric_cicd import deploy_with_config, change_log_level, append_feature_fla
 from fabric_workspace_manager import ensure_workspace_exists
 import yaml
 
+# Import configuration constants
+from deployment_config import (
+    VALID_ENVIRONMENTS,
+    SEPARATOR_LONG,
+    SEPARATOR_SHORT,
+    RESULTS_FILENAME,
+    CONFIG_FILE,
+    EXIT_SUCCESS,
+    EXIT_FAILURE,
+    ENV_AZURE_CLIENT_ID,
+    ENV_AZURE_TENANT_ID,
+    ENV_AZURE_CLIENT_SECRET,
+    ENV_FABRIC_CAPACITY_ID,
+    ENV_DEPLOYMENT_SP_OBJECT_ID,
+    ENV_FABRIC_ADMIN_GROUP_ID,
+    ENV_ACTIONS_RUNNER_DEBUG
+)
+
 # Enable experimental features for config-based deployment
 append_feature_flag("enable_experimental_features")
 append_feature_flag("enable_config_deploy")
-
-# Constants
-VALID_ENVIRONMENTS = {"dev", "test", "prod"}
-STAGE_PREFIXES = {
-    "dev": "[D] ",
-    "test": "[T] ",
-    "prod": "[P] "
-}
-SEPARATOR_LONG = "=" * 70
-SEPARATOR_SHORT = "=" * 60
-RESULTS_FILENAME = "deployment-results.json"
-PARAMETER_FILE = "parameter.yml"
-CONFIG_FILE = "config.yml"
-
-# Exit codes
-EXIT_SUCCESS = 0
-EXIT_FAILURE = 1
-
-# Environment variable names
-ENV_AZURE_CLIENT_ID = "AZURE_CLIENT_ID"
-ENV_AZURE_TENANT_ID = "AZURE_TENANT_ID"
-ENV_AZURE_CLIENT_SECRET = "AZURE_CLIENT_SECRET"
-ENV_FABRIC_CAPACITY_ID = "FABRIC_CAPACITY_ID"
-ENV_DEPLOYMENT_SP_OBJECT_ID = "DEPLOYMENT_SP_OBJECT_ID"
-ENV_FABRIC_ADMIN_GROUP_ID = "FABRIC_ADMIN_GROUP_ID"
-ENV_ACTIONS_RUNNER_DEBUG = "ACTIONS_RUNNER_DEBUG"
 
 
 @dataclass
@@ -75,14 +67,6 @@ class DeploymentSummary:
     @property
     def failed_count(self) -> int:
         return sum(1 for r in self.results if not r.success)
-    
-    @property
-    def successful_workspaces(self) -> List[str]:
-        return [r.workspace_folder for r in self.results if r.success]
-    
-    @property
-    def failed_results(self) -> List[DeploymentResult]:
-        return [r for r in self.results if not r.success]
 
 
 def load_workspace_config(workspace_folder: str, workspaces_dir: str) -> Dict[str, Any]:
@@ -261,47 +245,24 @@ def create_azure_credential() -> Union[ClientSecretCredential, DefaultAzureCrede
         return DefaultAzureCredential()
 
 
-def parse_workspace_folders(
-    workspace_folders_arg: Optional[str],
-    workspaces_directory: str
-) -> List[str]:
-    """Parse and return the list of workspace folders to deploy.
+def discover_workspace_folders(workspaces_directory: str) -> List[str]:
+    """Discover and return all workspace folders to deploy.
+    
+    Automatically discovers all workspace folders in the workspaces directory
+    that contain a config.yml file.
     
     Args:
-        workspace_folders_arg: Comma-separated list of workspace folders or None for all
         workspaces_directory: Root directory containing workspace folders
         
     Returns:
-        List of workspace folder names to deploy
+        Sorted list of workspace folder names to deploy
         
     Raises:
-        ValueError: If no workspace folders are found or specified folders are invalid
-        FileNotFoundError: If workspace folder or parameter file doesn't exist
+        ValueError: If no workspace folders are found
+        FileNotFoundError: If workspaces directory doesn't exist
     """
-    if workspace_folders_arg:
-        workspace_folders = [f.strip() for f in workspace_folders_arg.split(",")]
-        # Validate that specified folders exist and have parameter.yml
-        workspaces_path = Path(workspaces_directory)
-        for folder in workspace_folders:
-            folder_path = workspaces_path / folder
-            if not folder_path.exists():
-                raise FileNotFoundError(f"Workspace folder not found: {folder}")
-            if not folder_path.is_dir():
-                raise ValueError(f"Not a directory: {folder}")
-            config_file = folder_path / CONFIG_FILE
-            if not config_file.exists():
-                raise FileNotFoundError(
-                    f"{CONFIG_FILE} not found in workspace folder: {folder}. "
-                    f"Expected: {config_file}"
-                )
-        print(f"→ Deploying specified workspaces: {', '.join(workspace_folders)}\n")
-    else:
-        workspace_folders = get_workspace_folders(workspaces_directory)
-        print(f"→ Deploying all workspaces: {', '.join(workspace_folders)}\n")
-    
-    if not workspace_folders:
-        raise ValueError("No workspace folders found to deploy")
-    
+    workspace_folders = get_workspace_folders(workspaces_directory)
+    print(f"→ Discovered {len(workspace_folders)} workspace(s): {', '.join(workspace_folders)}\n")
     return workspace_folders
 
 
@@ -438,21 +399,29 @@ def deploy_all_workspaces(
 
 
 def main():
-    """Main deployment orchestration with rollback support."""
+    """Main deployment orchestration."""
     # Parse arguments from GitHub Actions workflow
-    parser = argparse.ArgumentParser(description="Deploy Fabric Workspaces with Rollback")
-    parser.add_argument("--workspaces_directory", type=str, required=True, 
-                       help="Root directory containing workspace folders")
-    parser.add_argument("--environment", type=str, required=True, 
-                       help="Environment to use for parameter.yml (dev/test/prod)")
-    parser.add_argument("--workspace_folders", type=str, required=False,
-                       help="Comma-separated list of workspace folders to deploy (default: all)")
+    parser = argparse.ArgumentParser(
+        description="Deploy Fabric Workspaces - Auto-discovers all workspace folders"
+    )
+    parser.add_argument(
+        "--workspaces_directory",
+        type=str,
+        required=True,
+        help="Root directory containing workspace folders"
+    )
+    parser.add_argument(
+        "--environment",
+        type=str,
+        required=True,
+        choices=list(VALID_ENVIRONMENTS),
+        help="Target environment (dev/test/prod)"
+    )
     
     args = parser.parse_args()
     
     workspaces_directory = args.workspaces_directory
     environment = args.environment
-    workspace_folders_arg = args.workspace_folders
     
     # Force unbuffered output for GitHub Actions logs
     sys.stdout.reconfigure(line_buffering=True, write_through=True)
@@ -481,8 +450,8 @@ def main():
         service_principal_object_id = os.getenv(ENV_DEPLOYMENT_SP_OBJECT_ID)
         entra_admin_group_id = os.getenv(ENV_FABRIC_ADMIN_GROUP_ID)
         
-        # Determine which workspaces to deploy
-        workspace_folders = parse_workspace_folders(workspace_folders_arg, workspaces_directory)
+        # Auto-discover all workspace folders
+        workspace_folders = discover_workspace_folders(workspaces_directory)
         
         # Track deployment duration
         deployment_start_time = time.time()

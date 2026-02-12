@@ -103,17 +103,13 @@ This architecture uses **Git-based deployments with Build environments** for con
 # Setup and Installation
 pip install fabric-cicd azure-identity  # Install dependencies
 
-# Local Development
+# Local Development - Deploys all workspaces with config.yml
 python scripts/deploy-to-fabric.py \
   --workspaces_directory workspaces \
-  --environment dev \
-  --workspace_folders "Fabric Blueprint"
+  --environment dev
 
-# Deploy specific workspace
-python scripts/deploy-to-fabric.py \
-  --workspaces_directory workspaces \
-  --environment dev \
-  --workspace_folders "Fabric Blueprint,Analytics Hub"
+# Note: The script automatically discovers all workspace folders
+# that contain a config.yml file. No need to specify workspace names.
 
 # Deployment Commands (via GitHub Actions)
 # Deploy to Dev: Automatic on merge to main
@@ -122,6 +118,9 @@ python scripts/deploy-to-fabric.py \
 
 # Validation
 python -m json.tool "workspaces/Fabric Blueprint/1_Bronze/lakehouse_bronze.Lakehouse/lakehouse.metadata.json"  # Validate JSON files
+
+# View deployment configuration
+cat scripts/deployment_config.py  # View centralized configuration constants
 ```
 
 ### Workflow Triggers
@@ -437,11 +436,14 @@ After deployment, validate that:
 The `scripts/deploy-to-fabric.py` script can be validated locally:
 
 ```bash
-# Dry-run validation (no actual deployment)
+# View available arguments
 python scripts/deploy-to-fabric.py --help
 
 # Validate parameter.yml syntax
 python -c "import yaml; yaml.safe_load(open('parameter.yml'))"
+
+# View deployment configuration constants
+python -c "from scripts.deployment_config import *; print(f'Valid environments: {VALID_ENVIRONMENTS}')"
 ```
 
 ## Coding Conventions

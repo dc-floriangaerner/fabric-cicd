@@ -1,0 +1,28 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+"""Configuration constants for Fabric deployment scripts."""
+
+# Valid deployment environments
+VALID_ENVIRONMENTS = {"dev", "test", "prod"}
+
+# Console output separators
+SEPARATOR_LONG = "=" * 70
+SEPARATOR_SHORT = "=" * 60
+
+# File names
+RESULTS_FILENAME = "deployment-results.json"
+CONFIG_FILE = "config.yml"
+
+# Exit codes
+EXIT_SUCCESS = 0
+EXIT_FAILURE = 1
+
+# Environment variable names
+ENV_AZURE_CLIENT_ID = "AZURE_CLIENT_ID"
+ENV_AZURE_TENANT_ID = "AZURE_TENANT_ID"
+ENV_AZURE_CLIENT_SECRET = "AZURE_CLIENT_SECRET"
+ENV_FABRIC_CAPACITY_ID = "FABRIC_CAPACITY_ID"
+ENV_DEPLOYMENT_SP_OBJECT_ID = "DEPLOYMENT_SP_OBJECT_ID"
+ENV_FABRIC_ADMIN_GROUP_ID = "FABRIC_ADMIN_GROUP_ID"
+ENV_ACTIONS_RUNNER_DEBUG = "ACTIONS_RUNNER_DEBUG"

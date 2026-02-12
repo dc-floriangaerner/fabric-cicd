@@ -1,11 +1,12 @@
 #!/bin/bash
 # Generate deployment summary for GitHub Actions
-# Usage: ./generate-deployment-summary.sh <environment> <trigger_type> <workspaces_csv>
+# Usage: ./generate-deployment-summary.sh <environment> <trigger_type> [workspaces_csv]
 #
 # Arguments:
 #   environment: Target environment (dev/test/prod)
 #   trigger_type: Deployment trigger (Automatic/Manual)
-#   workspaces_csv: Comma-separated list of workspaces deployed
+#   workspaces_csv: (Optional) Comma-separated list of workspaces deployed
+#               If omitted, workspace count will be read from deployment-results.json
 
 set -e
 
@@ -14,9 +15,9 @@ ENVIRONMENT="$1"
 TRIGGER_TYPE="$2"
 WORKSPACES_CSV="$3"
 
-if [ -z "$ENVIRONMENT" ] || [ -z "$TRIGGER_TYPE" ] || [ -z "$WORKSPACES_CSV" ]; then
+if [ -z "$ENVIRONMENT" ] || [ -z "$TRIGGER_TYPE" ]; then
     echo "Error: Missing required arguments" >&2
-    echo "Usage: $0 <environment> <trigger_type> <workspaces_csv>" >&2
+    echo "Usage: $0 <environment> <trigger_type> [workspaces_csv]" >&2
     exit 1
 fi
 
