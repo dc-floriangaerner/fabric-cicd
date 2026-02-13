@@ -1,8 +1,8 @@
 core:
   workspace:
-    dev: "[D] Fabric Autocreated Workspace 2"
-    test: "[T] Fabric Autocreated Workspace 2"
-    prod: "[P] Fabric Autocreated Workspace 2"
+    dev: "[D] Fabric Autocreated Workspace 3"
+    test: "[T] Fabric Autocreated Workspace 3"
+    prod: "[P] Fabric Autocreated Workspace 3"
   
   repository_directory: "."  # Relative to config.yml location
   
