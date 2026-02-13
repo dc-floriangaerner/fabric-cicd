@@ -95,6 +95,38 @@ def create_workspace(workspace_name: str, capacity_id: str, fabric_client: Fabri
             raise Exception(f"Workspace creation failed: {e.message}")
 
 
+def check_role_assignment_exists(
+    workspace_id: str,
+    principal_id: str,
+    role: str,
+    fabric_client: FabricClient
+) -> bool:
+    """Check if a role assignment already exists for a principal in a workspace.
+    
+    Args:
+        workspace_id: GUID of the workspace
+        principal_id: Azure AD Object ID of the principal
+        role: Role to check (typically "Admin")
+        fabric_client: Microsoft Fabric API client
+        
+    Returns:
+        True if the role assignment exists, False otherwise
+        
+    Raises:
+        Exception: If API call fails
+    """
+    try:
+        assignments = list(fabric_client.core.workspaces.list_workspace_role_assignments(workspace_id))
+        
+        for assignment in assignments:
+            if assignment.principal.id == principal_id and assignment.role == role:
+                return True
+        
+        return False
+    except HttpResponseError as e:
+        raise Exception(f"Failed to list workspace role assignments: {e.message}")
+
+
 def _assign_workspace_role(
     workspace_id: str,
     principal_id: str,
@@ -104,6 +136,9 @@ def _assign_workspace_role(
     principal_description: str
 ) -> None:
     """Internal helper to assign a role to a principal using SDK.
+    
+    Proactively checks if the role assignment exists before attempting to add it,
+    avoiding unnecessary API calls and brittle error message parsing.
     
     Args:
         workspace_id: GUID of the workspace
@@ -123,7 +158,14 @@ def _assign_workspace_role(
             print(f"  ⚠ WARNING: {principal_description} ID not set. Skipping role assignment.")
         return
     
-    print(f"  → Adding {principal_description} as {role} to workspace...")
+    # Proactively check if the role assignment already exists
+    print(f"  → Checking {principal_description} {role} access...")
+    if check_role_assignment_exists(workspace_id, principal_id, role, fabric_client):
+        print(f"  ✓ {principal_description} already has {role} access (verified)")
+        return
+    
+    # Role doesn't exist, add it
+    print(f"  → Granting {principal_description} {role} access...")
     
     try:
         request = AddWorkspaceRoleAssignmentRequest(
@@ -137,18 +179,10 @@ def _assign_workspace_role(
             workspace_id=workspace_id,
             workspace_role_assignment_request=request
         )
-        print(f"  ✓ {principal_description} added as {role} successfully")
+        print(f"  ✓ {principal_description} granted {role} access successfully")
         
     except HttpResponseError as e:
-        if e.status_code == 400:
-            error_msg = str(e.message).lower()
-            if "already exists" in error_msg or "already assigned" in error_msg:
-                print(f"  ✓ {principal_description} already has {role} access")
-            else:
-                raise Exception(f"Invalid {principal_description} role assignment request: {e.message}")
-        elif e.status_code == 409:
-            print(f"  ✓ {principal_description} already has {role} access")
-        elif e.status_code == 404:
+        if e.status_code == 404:
             principal_type_hint = "Service Principal Object ID (not Client ID)" if principal_type == "ServicePrincipal" else "Entra ID group Object ID"
             raise Exception(
                 f"Invalid {principal_description} Object ID '{principal_id}'. "
