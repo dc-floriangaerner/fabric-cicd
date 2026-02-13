@@ -151,7 +151,7 @@ The Fabric MCP (Model Context Protocol) server provides specialized tools and co
 **Benefits:**
 - Access to latest Fabric API specifications
 - Context-aware guidance for Fabric-specific tasks
-- Direct integration with Fabric REST APIs
+- Integration with Microsoft Fabric API SDK
 - Official Microsoft documentation and examples
 
 **When MCP server is not available:**

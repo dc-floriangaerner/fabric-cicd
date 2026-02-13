@@ -1,14 +1,1 @@
-[
-  {
-    "name": "username_csv",
-    "path": "Files/Shortcuts/username_csv",
-    "target": {
-      "type": "AdlsGen2",
-      "adlsGen2": {
-        "location": "https://stsfabricshortcuts.blob.core.windows.net/fabric-shortcuts/username.csv?sp=r&st=2026-02-04T15:24:12Z&se=2026-08-26T22:39:12Z&spr=https&sv=2024-11-04&sr=b&sig=r0121T89ESDdqrbKpLZyLBLRbLUVtlaqv2AckcbM2eM%3D",
-        "connectionId": "00000000-0000-0000-0000-000000000000",
-        "subpath": "/"
-      }
-    }
-  }
-]
+[]
