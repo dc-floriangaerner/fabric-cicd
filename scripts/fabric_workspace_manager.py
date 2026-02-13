@@ -9,7 +9,7 @@ from microsoft_fabric_api.generated.core.models import (
     CreateWorkspaceRequest,
     AddWorkspaceRoleAssignmentRequest
 )
-from azure.core.exceptions import HttpResponseError, ResourceExistsError
+from azure.core.exceptions import HttpResponseError
 
 
 def check_workspace_exists(workspace_name: str, fabric_client: FabricClient) -> Optional[str]:
