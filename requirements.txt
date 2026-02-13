@@ -3,5 +3,5 @@
 
 fabric-cicd
 azure-identity
-requests
+microsoft-fabric-api==0.1.0b2
 pyyaml

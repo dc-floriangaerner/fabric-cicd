@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Union, Any
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from microsoft_fabric_api import FabricClient
 from fabric_cicd import deploy_with_config, change_log_level, append_feature_flag
 from fabric_workspace_manager import ensure_workspace_exists
 import yaml
@@ -190,12 +191,15 @@ def deploy_workspace(
         print(f"→ Config file: {config_file_path}")
         print(f"→ Environment: {environment}")
         
+        # Create Fabric API client
+        fabric_client = create_fabric_client(token_credential)
+        
         # Ensure workspace exists (create if necessary)
         workspace_id = ensure_workspace_exists(
             workspace_name=workspace_name,
             capacity_id=capacity_id,
             service_principal_object_id=service_principal_object_id,
-            token_credential=token_credential,
+            fabric_client=fabric_client,
             entra_admin_group_id=entra_admin_group_id
         )
         print(f"→ Workspace ensured with ID: {workspace_id}")
@@ -243,6 +247,18 @@ def create_azure_credential() -> Union[ClientSecretCredential, DefaultAzureCrede
     else:
         print("→ Using DefaultAzureCredential for authentication (local development)")
         return DefaultAzureCredential()
+
+
+def create_fabric_client(token_credential: Union[ClientSecretCredential, DefaultAzureCredential]) -> FabricClient:
+    """Create and return Microsoft Fabric API client.
+    
+    Args:
+        token_credential: Azure credential for authentication
+        
+    Returns:
+        Initialized FabricClient instance
+    """
+    return FabricClient(credential=token_credential)
 
 
 def discover_workspace_folders(workspaces_directory: str) -> List[str]:
