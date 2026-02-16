@@ -104,7 +104,7 @@ workspaces/
 - Test: Defined in `config.yml` under `core.workspace.test` (e.g., `[T] Fabric Blueprint`)
 - Prod: Defined in `config.yml` under `core.workspace.prod` (e.g., `[P] Fabric Blueprint`)
 
-**Atomic Rollback**: If any workspace deployment fails, all previously deployed workspaces in that run are automatically rolled back.
+**Atomic Rollback (Planned Feature)**: Atomic rollback is planned for future implementation. When implemented, if any workspace deployment fails, all previously deployed workspaces in that run would be automatically rolled back.
 
 ## Git Integration & CI/CD Strategy
 
@@ -174,7 +174,7 @@ This architecture uses **Git-based deployments with Build environments** for con
 pip install fabric-cicd azure-identity  # Install dependencies
 
 # Local Development - Deploys all workspaces with config.yml
-python scripts/deploy-to-fabric.py \
+python -m scripts.deploy_to_fabric \
   --workspaces_directory workspaces \
   --environment dev
 
@@ -503,11 +503,11 @@ After deployment, validate that:
 
 ### Deployment Script Validation
 
-The `scripts/deploy-to-fabric.py` script can be validated locally:
+The `scripts/deploy_to_fabric.py` script can be validated locally:
 
 ```bash
 # View available arguments
-python scripts/deploy-to-fabric.py --help
+python -m scripts.deploy_to_fabric --help
 
 # Validate parameter.yml syntax
 python -c "import yaml; yaml.safe_load(open('parameter.yml'))"
@@ -595,7 +595,7 @@ find_replace:
       _ALL_: "$items.Lakehouse.lakehouse_silver.sqlendpoint"
     is_regex: "true"
     item_type: "SemanticModel"
-    description: "Replace SQL endpoint in semantic models"
+    # Valid optional fields: is_regex, item_type, item_name, file_path
 ```
 
 ## Prohibited Areas

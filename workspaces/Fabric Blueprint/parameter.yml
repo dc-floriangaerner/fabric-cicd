@@ -17,8 +17,23 @@ find_replace:
       is_regex: "true"
       item_type: "SemanticModel"
 
-# TODO: Add lakehouse and workspace ID transformations once you have your Dev workspace IDs
-# Example entries (uncomment and update with actual IDs):
+    # Replace hardcoded workspace ID in CopyJob with dynamic workspace reference
+    - find_value: "00000000-0000-0000-0000-000000000000"
+      replace_value:
+        _ALL_: "$workspace.id"
+      item_type: "CopyJob"
+
+    # Replace hardcoded lakehouse artifact ID in CopyJob
+    - find_value: "b892bcb4-b1d3-a9e0-4a9e-fac33bb0b654"
+      replace_value:
+        _ALL_: "$items.Lakehouse.lakehouse_bronze.id"
+      item_type: "CopyJob"
+
+# INSTRUCTIONS: Add lakehouse and workspace ID transformations for your Dev workspace
+# Once you have deployed to Dev and captured the actual IDs from your items,
+# add find/replace rules here to enable promotion to Test and Prod environments.
+#
+# Example entries:
 #     - find_value: "your-dev-lakehouse-bronze-id"
 #       replace_value:
 #         _ALL_: "$items.Lakehouse.lakehouse_bronze.id"
