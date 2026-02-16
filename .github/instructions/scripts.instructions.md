@@ -1,0 +1,85 @@
+---
+applyTo: "scripts/**/*.py"
+description: "Python scripts for Fabric CI/CD deployment and management"
+---
+
+# Python Scripts Instructions
+
+## Specific Guidelines for scripts/ Directory
+
+### Module Structure
+
+Scripts in the `scripts/` directory are organized as a Python package:
+
+- Use **relative imports** for local modules: `from .module import function`
+- Files use **underscore naming**: `deploy_to_fabric.py` (not hyphens)
+- Execute as modules: `python -m scripts.deploy_to_fabric`
+
+### Coding Standards
+
+- **Python Version**: 3.11+
+- **Type Hints**: Always use type hints for function parameters and return types
+- **Error Handling**: Catch specific exceptions, use `sys.exit(1)` for errors
+- **Logging**: Use `print()` statements for GitHub Actions visibility (not logging module)
+- **Docstrings**: Include for all public functions with Args and Returns sections
+
+### Error Handling Pattern
+
+```python
+from azure.core.exceptions import HttpResponseError
+
+try:
+    # API operation
+    result = client.do_something()
+except HttpResponseError as e:
+    # Use str(e) to get error message, NOT e.message
+    print(f"ERROR: Operation failed: {str(e)}")
+    sys.exit(1)
+```
+
+### Authentication
+
+Use the `microsoft_fabric_api` SDK for all Fabric operations:
+
+```python
+from microsoft_fabric_api import FabricClient
+from azure.identity import ClientSecretCredential
+
+credential = ClientSecretCredential(
+    tenant_id=tenant_id,
+    client_id=client_id,
+    client_secret=client_secret
+)
+
+client = FabricClient(token_credential=credential)
+```
+
+### Common Patterns
+
+**Configuration Management:**
+- Constants defined in `scripts/deployment_config.py`
+- Import as: `from .deployment_config import VALID_ENVIRONMENTS`
+
+**Workspace Management:**
+- Use `FabricWorkspaceManager` class from `fabric_workspace_manager.py`
+- Handles workspace creation, deployment, and rollback
+
+**Return Values:**
+- Return `bool` for success/failure operations
+- Return `None` or raise exceptions for errors
+- Always provide clear error messages
+
+### Testing
+
+This is a reference architecture - no automated tests required for scripts. Manual validation:
+- Test locally before committing
+- Verify deployment with actual Fabric workspaces
+- Check GitHub Actions logs for errors
+
+### Files in This Directory
+
+- `deploy_to_fabric.py` - Main deployment orchestration script
+- `deployment_config.py` - Centralized configuration constants
+- `fabric_workspace_manager.py` - Workspace management utilities
+- `generate_deployment_summary.sh` - Bash script for deployment summaries
+- `*.ipynb` - Jupyter notebooks for API exploration (not used in CI/CD)

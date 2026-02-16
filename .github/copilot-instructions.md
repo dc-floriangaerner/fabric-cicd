@@ -1,5 +1,75 @@
 # Copilot Instructions for Fabric CI/CD Reference Architecture
 
+## Quick Start
+
+**New to this repository?** Here's what you need to know:
+
+### What is this?
+A reference architecture for deploying Microsoft Fabric workspaces using CI/CD pipelines. Supports multiple workspaces from a single repository with automated deployments across Dev/Test/Prod environments.
+
+### Key Technologies
+- **Python 3.11+** - Deployment scripts
+- **Microsoft Fabric** - Data platform and workspace items
+- **GitHub Actions** - CI/CD automation
+- **fabric-cicd library** - Deployment orchestration
+- **Azure Identity** - Service Principal authentication
+
+### Quick Commands
+
+```bash
+# Install dependencies
+pip install fabric-cicd azure-identity
+
+# Deploy locally to Dev
+python -m scripts.deploy_to_fabric --workspaces_directory workspaces --environment dev
+
+# Validate JSON files
+python -m json.tool "workspaces/Fabric Blueprint/1_Bronze/lakehouse_bronze.Lakehouse/lakehouse.metadata.json"
+
+# View deployment configuration
+cat scripts/deployment_config.py
+```
+
+### Repository Structure
+
+```
+.
+├── .github/
+│   ├── copilot-instructions.md    # You are here
+│   ├── instructions/              # Path-specific Copilot instructions
+│   └── workflows/                 # GitHub Actions workflows
+├── scripts/                        # Python deployment scripts
+├── workspaces/                     # Fabric workspace definitions
+│   ├── Fabric Blueprint/          # Example workspace
+│   │   ├── config.yml            # Workspace names per environment
+│   │   ├── parameter.yml         # ID transformation rules
+│   │   ├── 1_Bronze/             # Bronze layer items
+│   │   ├── 2_Silver/             # Silver layer items
+│   │   ├── 3_Gold/               # Gold layer items
+│   │   └── 4_Analytics/          # Analytics layer items
+│   └── ...                        # Additional workspaces
+├── README.md                       # User-facing documentation
+└── SETUP.md                        # Setup guide
+```
+
+### Making Changes
+
+**ALWAYS follow this workflow:**
+1. Create a GitHub issue documenting the change
+2. Create a feature branch: `feature/<issue-number>-description`
+3. Make your changes
+4. Create a Pull Request to `main`
+5. After approval, merge to `main` (triggers auto-deployment to Dev)
+
+### Getting Help
+
+- **README.md** - Overview and usage
+- **SETUP.md** - Detailed setup instructions
+- **.github/instructions/** - Path-specific coding guidelines
+- Sections below - Detailed architecture and patterns
+
+---
+
 ## Project Overview
 
 This is a **reference architecture** for Microsoft Fabric CI/CD supporting **multiple workspaces** from a single repository. Uses a **medallion architecture** (Bronze → Silver → Gold) for data engineering. The codebase defines Fabric workspace items as code, enabling Git-based version control, collaboration, and automated deployment workflows.
