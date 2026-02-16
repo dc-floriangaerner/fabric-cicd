@@ -28,6 +28,11 @@ env:
   PYTHON_VERSION: '3.12'
   WORKSPACES_DIRECTORY: 'workspaces'
 
+# Prevent parallel deployments to avoid conflicts
+concurrency:
+  group: fabric-deploy-${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+  cancel-in-progress: false
+
 jobs:
   # Deploy job - dynamically deploys to the triggered environment only
   # Triggers:
@@ -38,6 +43,7 @@ jobs:
   deploy:
     name: Deploy to ${{ github.event_name == 'push' && 'Dev' || inputs.environment == 'dev' && 'Dev' || inputs.environment == 'test' && 'Test' || 'Production' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment:
       name: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
       url: https://app.fabric.microsoft.com
@@ -79,7 +85,7 @@ jobs:
       - name: Deploy to Fabric
         id: deploy
         run: |
-          python -u scripts/deploy-to-fabric.py \
+          python -u -m scripts.deploy_to_fabric \
             --workspaces_directory "${{ env.WORKSPACES_DIRECTORY }}" \
             --environment "${{ steps.set-env.outputs.environment }}"
         env:
@@ -94,6 +100,15 @@ jobs:
         if: always()
         run: |
           # Generate deployment summary using reusable script
-          bash scripts/generate-deployment-summary.sh "${{ steps.set-env.outputs.environment }}" "${{ steps.set-env.outputs.trigger_type }}"
+          bash scripts/generate_deployment_summary.sh "${{ steps.set-env.outputs.environment }}" "${{ steps.set-env.outputs.trigger_type }}"
         env:
           JOB_STATUS: ${{ job.status }}
+
+      - name: Upload deployment results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-results-${{ steps.set-env.outputs.environment }}-${{ github.run_number }}
+          path: deployment-results.json
+          if-no-files-found: warn
+          retention-days: 30

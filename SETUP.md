@@ -417,19 +417,19 @@ For each deployed workspace (e.g., "[D] Fabric Blueprint"):
 | **Test** | Manual workflow dispatch | After Dev deployment verified |
 | **Production** | Manual workflow dispatch | After Test deployment verified |
 
-### Atomic Rollback
+### Atomic Rollback (Planned Feature)
 
-If any workspace deployment fails, all previously deployed workspaces in that run are automatically rolled back:
+Atomic rollback is a planned enhancement for future implementation. This feature would ensure that if any workspace deployment fails, all previously deployed workspaces in that run are automatically rolled back:
 
 ```
 Workspace A → Success ✓
 Workspace B → Success ✓  
 Workspace C → FAILURE ✗
-→ Rollback B and A
+→ Rollback B and A (PLANNED)
 → Exit with error
 ```
 
-This ensures environments remain in a consistent state.
+This would ensure environments remain in a consistent state. Currently, deployments proceed independently for each workspace.
 
 
 ## Troubleshooting

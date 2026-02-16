@@ -15,11 +15,13 @@ from typing import List, Dict, Optional, Union, Any
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from microsoft_fabric_api import FabricClient
 from fabric_cicd import deploy_with_config, change_log_level, append_feature_flag
-from fabric_workspace_manager import ensure_workspace_exists
 import yaml
 
+# Import local modules using relative imports
+from .fabric_workspace_manager import ensure_workspace_exists
+
 # Import configuration constants
-from deployment_config import (
+from .deployment_config import (
     VALID_ENVIRONMENTS,
     SEPARATOR_LONG,
     SEPARATOR_SHORT,
@@ -35,10 +37,6 @@ from deployment_config import (
     ENV_FABRIC_ADMIN_GROUP_ID,
     ENV_ACTIONS_RUNNER_DEBUG
 )
-
-# Enable experimental features for config-based deployment
-append_feature_flag("enable_experimental_features")
-append_feature_flag("enable_config_deploy")
 
 
 @dataclass
@@ -416,6 +414,10 @@ def deploy_all_workspaces(
 
 def main():
     """Main deployment orchestration."""
+    # Enable experimental features for config-based deployment
+    append_feature_flag("enable_experimental_features")
+    append_feature_flag("enable_config_deploy")
+    
     # Parse arguments from GitHub Actions workflow
     parser = argparse.ArgumentParser(
         description="Deploy Fabric Workspaces - Auto-discovers all workspace folders"
