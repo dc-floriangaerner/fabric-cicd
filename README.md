@@ -1,6 +1,6 @@
 # Fabric CI/CD Reference Architecture
 
-A reference architecture for implementing CI/CD pipelines for Microsoft Fabric workspaces using GitHub Actions and the `fabric-cicd` Python library. Supports deploying multiple workspaces from a single repository with automatic change detection and atomic rollback.
+A reference architecture for implementing CI/CD pipelines for Microsoft Fabric workspaces using GitHub Actions and the `fabric-cicd` Python library. Supports deploying multiple workspaces from a single repository with automatic change detection.
 
 ## Overview
 
@@ -14,7 +14,6 @@ This repository demonstrates best practices for deploying Microsoft Fabric works
 - **Multi-stage Deployment**: Dev → Test → Production with approval gates
 - **Git-based Deployment**: Single source of truth in `main` branch
 - **Dynamic Workspace Naming**: Automatic stage prefixes ([D], [T], [P])
-- **Atomic Rollback**: All-or-nothing deployment with automatic rollback on failure
 - **ID Transformation**: Automatic adjustment of workspace-specific references
 
 ### Repository Structure

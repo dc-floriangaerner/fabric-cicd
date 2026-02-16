@@ -34,7 +34,7 @@ workspaces/
 - Test: Defined in `config.yml` under `core.workspace.test` (e.g., `[T] Fabric Blueprint`)
 - Prod: Defined in `config.yml` under `core.workspace.prod` (e.g., `[P] Fabric Blueprint`)
 
-**Atomic Rollback**: If any workspace deployment fails, all previously deployed workspaces in that run are automatically rolled back.
+**Atomic Rollback (Planned Feature)**: Atomic rollback is planned for future implementation. When implemented, if any workspace deployment fails, all previously deployed workspaces in that run would be automatically rolled back.
 
 ## Git Integration & CI/CD Strategy
 
