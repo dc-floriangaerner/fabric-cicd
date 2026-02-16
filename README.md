@@ -106,6 +106,7 @@ Each workspace has its own `parameter.yml` file in its root directory. Edit the 
 
 ```yaml
 find_replace:
+  # Valid optional fields: is_regex, item_type, item_name, file_path
   - find_value: "your-dev-lakehouse-bronze-id"
     replace_value:
       _ALL_: "$items.Lakehouse.lakehouse_bronze.id"

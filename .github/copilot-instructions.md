@@ -525,7 +525,7 @@ find_replace:
       _ALL_: "$items.Lakehouse.lakehouse_silver.sqlendpoint"
     is_regex: "true"
     item_type: "SemanticModel"
-    description: "Replace SQL endpoint in semantic models"
+    # Valid optional fields: is_regex, item_type, item_name, file_path
 ```
 
 ## Prohibited Areas

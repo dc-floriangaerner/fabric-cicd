@@ -344,7 +344,7 @@ find_replace:
     replace_value:
       _ALL_: "$items.Lakehouse.lakehouse_bronze.id"
     item_type: "Notebook"
-    description: "Replace bronze lakehouse references"
+    # Valid optional fields: is_regex, item_type, item_name, file_path
 ```
 
 Each workspace has its own independent configuration file.
