@@ -1,5 +1,5 @@
 [project]
-name = "fabric-cicd"
+name = "dc-fabric-cicd"
 version = "1.0.0"
 description = "Reference architecture for Microsoft Fabric CI/CD with multiple workspace support"
 readme = "README.md"

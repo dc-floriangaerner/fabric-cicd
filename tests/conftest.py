@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Pytest configuration and fixtures for fabric-cicd tests."""
+"""Pytest configuration and fixtures for dc-fabric-cicd tests."""
 
 from pathlib import Path
 from typing import Any

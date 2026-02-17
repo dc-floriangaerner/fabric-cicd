@@ -36,7 +36,7 @@ Workspace names are explicitly configured in `config.yml`:
 
 1. Navigate to **Microsoft Entra ID** → **App registrations**
 2. Click **New registration**
-3. Name: `fabric-cicd-deployment`
+3. Name: `dc-fabric-cicd-deployment`
 4. Click **Register**
 5. Copy the **Application (client) ID** (this is `AZURE_CLIENT_ID`)
 6. Copy the **Directory (tenant) ID** (this is `AZURE_TENANT_ID`)
@@ -59,7 +59,7 @@ Workspace names are explicitly configured in `config.yml`:
 az login
 
 # Create Service Principal
-SP_OUTPUT=$(az ad sp create-for-rbac --name "fabric-cicd-deployment" --skip-assignment)
+SP_OUTPUT=$(az ad sp create-for-rbac --name "dc-fabric-cicd-deployment" --skip-assignment)
 
 # Extract values
 echo "AZURE_CLIENT_ID:" $(echo $SP_OUTPUT | jq -r '.clientId')
@@ -75,7 +75,7 @@ echo "DEPLOYMENT_SP_OBJECT_ID: $OBJECT_ID"
 **Alternative without jq:**
 ```bash
 # Create Service Principal and display as table
-az ad sp create-for-rbac --name "fabric-cicd-deployment" --skip-assignment --output table
+az ad sp create-for-rbac --name "dc-fabric-cicd-deployment" --skip-assignment --output table
 
 # Get Object ID separately (use Client ID from above)
 az ad sp show --id <YOUR-CLIENT-ID> --query id -o tsv
@@ -95,7 +95,7 @@ The Service Principal needs **TWO separate configurations** to create workspaces
 4. Enable the setting
 5. Under **Apply to**, select **Specific security groups**
 6. Add your Service Principal:
-   - Search by the Service Principal name (`fabric-cicd-deployment`)
+   - Search by the Service Principal name (`dc-fabric-cicd-deployment`)
    - Or create a security group and add the Service Principal to it
 7. Click **Apply**
 
@@ -109,7 +109,7 @@ The Service Principal needs **TWO separate configurations** to create workspaces
 4. Click **Add** under the "Accounts" section
 5. Enter one of the following:
    - The Service Principal's **Client ID** (Application ID)
-   - Or search for the **Enterprise Application** by name (`fabric-cicd-deployment`)
+   - Or search for the **Enterprise Application** by name (`dc-fabric-cicd-deployment`)
 6. Click **Add** to confirm
 
 **⚠️ Important Notes:**
@@ -160,7 +160,7 @@ For **each workspace** in **each environment** (Dev, Test, Prod):
 2. Name it with correct prefix: `[D] <folder-name>`, `[T] <folder-name>`, `[P] <folder-name>`
 3. Click **Workspace settings** → **Manage access**
 4. Click **Add people or groups**
-5. Search for your Service Principal name (`fabric-cicd-deployment`)
+5. Search for your Service Principal name (`dc-fabric-cicd-deployment`)
 6. Assign role: **Admin** or **Contributor**
 7. Click **Add**
 
