@@ -38,7 +38,7 @@ def check_workspace_exists(workspace_name: str, fabric_client: FabricClient) -> 
 
         return None
     except HttpResponseError as e:
-        raise Exception(f"Failed to list workspaces: {e.message}") from e
+        raise Exception(f"Failed to list workspaces: {e!s}") from e
 
 
 def create_workspace(workspace_name: str, capacity_id: str, fabric_client: FabricClient) -> str:
@@ -79,7 +79,7 @@ def create_workspace(workspace_name: str, capacity_id: str, fabric_client: Fabri
 
     except HttpResponseError as e:
         if e.status_code == 400:
-            raise Exception(f"Invalid workspace creation request: {e.message}") from e
+            raise Exception(f"Invalid workspace creation request: {e!s}") from e
         elif e.status_code == 403:
             raise Exception(
                 "Service Principal lacks workspace creation permissions.\n\n"
@@ -94,7 +94,7 @@ def create_workspace(workspace_name: str, capacity_id: str, fabric_client: Fabri
                 f"Invalid capacity ID '{capacity_id}'. Verify FABRIC_CAPACITY_ID_* secret is correct."
             ) from e
         else:
-            raise Exception(f"Workspace creation failed: {e.message}") from e
+            raise Exception(f"Workspace creation failed: {e!s}") from e
 
 
 def check_role_assignment_exists(workspace_id: str, principal_id: str, role: str, fabric_client: FabricClient) -> bool:
@@ -117,7 +117,7 @@ def check_role_assignment_exists(workspace_id: str, principal_id: str, role: str
 
         return any(assignment.principal.id == principal_id and assignment.role == role for assignment in assignments)
     except HttpResponseError as e:
-        raise Exception(f"Failed to list workspace role assignments: {e.message}") from e
+        raise Exception(f"Failed to list workspace role assignments: {e!s}") from e
 
 
 def _assign_workspace_role(
@@ -180,7 +180,7 @@ def _assign_workspace_role(
                 "Find it in Azure Portal → Azure Active Directory."
             ) from e
         else:
-            raise Exception(f"{principal_description} role assignment failed: {e.message}") from e
+            raise Exception(f"{principal_description} role assignment failed: {e!s}") from e
 
 
 def add_workspace_admin(workspace_id: str, service_principal_object_id: str, fabric_client: FabricClient) -> None:
