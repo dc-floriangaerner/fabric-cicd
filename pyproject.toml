@@ -50,10 +50,12 @@ exclude = [
     "dist",
     "*.egg-info",
     "workspaces",
+    "docs/exploration/**",
+    "*.ipynb",
 ]
 
 [tool.ruff.lint]
-# Enable rule sets: pycodestyle errors (E), Pyflakes (F), warnings (W), 
+# Enable rule sets: pycodestyle errors (E), Pyflakes (F), warnings (W),
 # isort (I), pyupgrade (UP), flake8-bugbear (B), simplify (SIM), Ruff-specific (RUF)
 # flake8-print (T20) - prevent print statements
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "T20"]

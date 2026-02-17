@@ -1220,18 +1220,18 @@ print(f"✓ Items created: {len([bronze, silver, gold, notebook])}")
 ```python
 def migrate_items(source_workspace_id, target_workspace_id, item_types=None):
     """Copy items from one workspace to another."""
-    
+
     # Get source items
     source_items = list(fabric_client.core.items.list_items(
         workspace_id=source_workspace_id
     ))
-    
+
     # Filter by type if specified
     if item_types:
         source_items = [item for item in source_items if item.type in item_types]
-    
+
     migrated = []
-    
+
     for item in source_items:
         try:
             # Create item in target workspace
@@ -1247,7 +1247,7 @@ def migrate_items(source_workspace_id, target_workspace_id, item_types=None):
             print(f"✓ Migrated: {item.display_name}")
         except Exception as e:
             print(f"✗ Failed to migrate {item.display_name}: {str(e)}")
-    
+
     return migrated
 
 # Usage
@@ -1373,7 +1373,7 @@ def explore_api_module(module, module_name):
     """Discover all methods and their signatures in an API module."""
     print(f"\n{module_name}")
     print("=" * 70)
-    
+
     for attr_name in dir(module):
         if not attr_name.startswith('_'):
             attr = getattr(module, attr_name)
@@ -1411,17 +1411,17 @@ def list_submodules(top_level_module_name):
     """List all sub-modules for a given top-level module."""
     module = getattr(fabric_client, top_level_module_name)
     print(f"\n{top_level_module_name} sub-modules:")
-    
+
     submodules = []
     for attr_name in dir(module):
         if not attr_name.startswith('_'):
             attr = getattr(module, attr_name)
             if not callable(attr):
                 submodules.append(attr_name)
-    
+
     for submodule in sorted(submodules):
         print(f"  • {top_level_module_name}.{submodule}")
-    
+
     return submodules
 
 # Examples
@@ -1440,19 +1440,19 @@ import inspect
 
 def inspect_method(module_path, method_name):
     """Get detailed information about a specific method.
-    
+
     Args:
         module_path: Dot-notation path (e.g., 'core.workspaces')
         method_name: Method name (e.g., 'list_workspaces')
     """
     parts = module_path.split('.')
     module = fabric_client
-    
+
     for part in parts:
         module = getattr(module, part)
-    
+
     method = getattr(module, method_name)
-    
+
     print(f"\n{module_path}.{method_name}")
     print("=" * 70)
     print(f"\nSignature: {inspect.signature(method)}")

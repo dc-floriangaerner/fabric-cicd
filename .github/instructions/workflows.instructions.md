@@ -134,7 +134,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # Job logic
-  
+
   verify:
     needs: deploy
     runs-on: ubuntu-latest

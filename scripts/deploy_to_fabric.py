@@ -286,18 +286,11 @@ def build_deployment_results_json(summary: DeploymentSummary) -> dict[str, Any]:
     Returns:
         Dictionary containing deployment results for JSON serialization
     """
-    results_json = {
-        "environment": summary.environment,
-        "duration": summary.duration,
-        "total_workspaces": summary.total_workspaces,
-        "successful_count": summary.successful_count,
-        "failed_count": summary.failed_count,
-        "workspaces": [],
-    }
+    workspaces_list: list[dict[str, Any]] = []
 
     # Add all workspace results
     for result in summary.results:
-        results_json["workspaces"].append(
+        workspaces_list.append(
             {
                 "name": result.workspace_folder,
                 "full_name": result.workspace_name,
@@ -307,7 +300,16 @@ def build_deployment_results_json(summary: DeploymentSummary) -> dict[str, Any]:
         )
 
     # Sort workspaces by name for consistent output
-    results_json["workspaces"].sort(key=lambda x: x["name"])
+    workspaces_list.sort(key=lambda x: x["name"])
+
+    results_json = {
+        "environment": summary.environment,
+        "duration": summary.duration,
+        "total_workspaces": summary.total_workspaces,
+        "successful_count": summary.successful_count,
+        "failed_count": summary.failed_count,
+        "workspaces": workspaces_list,
+    }
 
     return results_json
 

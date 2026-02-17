@@ -277,10 +277,10 @@ Each Fabric item follows this pattern:
 - **Notebooks**: `notebook-content.py` with inline `# METADATA` blocks
   - Kernel: `synapse_pyspark`
   - Structure: Python source with META comments for cell boundaries
-  
+
 - **Copy Jobs**: `copyjob-content.json` with `properties.jobMode` (typically "Batch")
 
-- **Lakehouses**: 
+- **Lakehouses**:
   - `lakehouse.metadata.json`: Schema config (`{"defaultSchema":"dbo"}`)
   - `alm.settings.json`: Controls ALM for shortcuts, data access roles
   - `shortcuts.metadata.json`: OneLake/ADLS/S3/Dataverse shortcuts
@@ -537,12 +537,12 @@ def deploy_workspace(
     token_credential: ClientSecretCredential
 ) -> bool:
     """Deploy workspace items to Fabric.
-    
+
     Args:
         workspace_name: Name of the target Fabric workspace
         environment: Target environment (dev/test/prod)
         token_credential: Azure credential for authentication
-        
+
     Returns:
         True if deployment succeeds, False otherwise
     """

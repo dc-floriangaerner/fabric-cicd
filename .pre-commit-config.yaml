@@ -19,7 +19,6 @@ repos:
     hooks:
       # Check YAML files for syntax errors
       - id: check-yaml
-        args: [--safe]
       # Check JSON files for syntax errors
       - id: check-json
       # Remove trailing whitespace
@@ -51,9 +50,12 @@ repos:
         args: [--ignore-missing-imports, --no-strict-optional]
         files: ^scripts/
 
+# Global exclusion patterns
+exclude: ^workspaces/
+
 # Global settings
 default_language_version:
-  python: python3.11
+  python: python3
 
 # CI settings - fail fast on first error
 fail_fast: false

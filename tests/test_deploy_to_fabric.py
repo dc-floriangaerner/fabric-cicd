@@ -92,11 +92,7 @@ class TestDeploymentResult:
 
     def test_deployment_result_success(self):
         """Test creating a successful deployment result."""
-        result = DeploymentResult(
-            workspace_folder="Test Workspace",
-            workspace_name="[D] Test Workspace",
-            success=True
-        )
+        result = DeploymentResult(workspace_folder="Test Workspace", workspace_name="[D] Test Workspace", success=True)
 
         assert result.success is True
         assert result.error_message == ""
@@ -107,7 +103,7 @@ class TestDeploymentResult:
             workspace_folder="Test Workspace",
             workspace_name="[D] Test Workspace",
             success=False,
-            error_message="Connection failed"
+            error_message="Connection failed",
         )
 
         assert result.success is False
@@ -125,11 +121,7 @@ class TestDeploymentSummary:
             DeploymentResult("WS3", "[D] WS3", False, "Error"),
         ]
 
-        summary = DeploymentSummary(
-            environment="dev",
-            duration=120.5,
-            results=results
-        )
+        summary = DeploymentSummary(environment="dev", duration=120.5, results=results)
 
         assert summary.total_workspaces == 3
         assert summary.successful_count == 2
@@ -142,11 +134,7 @@ class TestDeploymentSummary:
             DeploymentResult("WS2", "[D] WS2", True),
         ]
 
-        summary = DeploymentSummary(
-            environment="dev",
-            duration=60.0,
-            results=results
-        )
+        summary = DeploymentSummary(environment="dev", duration=60.0, results=results)
 
         assert summary.successful_count == 2
         assert summary.failed_count == 0
@@ -158,11 +146,7 @@ class TestDeploymentSummary:
             DeploymentResult("WS2", "[D] WS2", False, "Error 2"),
         ]
 
-        summary = DeploymentSummary(
-            environment="dev",
-            duration=30.0,
-            results=results
-        )
+        summary = DeploymentSummary(environment="dev", duration=30.0, results=results)
 
         assert summary.successful_count == 0
         assert summary.failed_count == 2
@@ -172,8 +156,8 @@ class TestDeploymentSummary:
 class TestDeploymentIntegration:
     """Integration tests for deployment workflow (requires mocked Fabric API)."""
 
-    @patch('scripts.deploy_to_fabric.FabricClient')
-    @patch('scripts.deploy_to_fabric.ClientSecretCredential')
+    @patch("scripts.deploy_to_fabric.FabricClient")
+    @patch("scripts.deploy_to_fabric.ClientSecretCredential")
     def test_deployment_workflow_mock(self, mock_cred, mock_client, temp_workspace_dir, mock_env_vars):
         """Test full deployment workflow with mocked dependencies."""
         # This is a placeholder for integration testing

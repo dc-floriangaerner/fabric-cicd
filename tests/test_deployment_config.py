@@ -3,7 +3,6 @@
 
 """Tests for deployment_config.py constants."""
 
-
 from scripts.deployment_config import (
     CONFIG_FILE,
     ENV_ACTIONS_RUNNER_DEBUG,

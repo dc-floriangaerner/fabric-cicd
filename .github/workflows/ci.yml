@@ -31,31 +31,31 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-      
+
       - name: Run Ruff linting
         run: |
           echo "::group::Ruff Check"
           ruff check scripts/ --output-format=github
           echo "::endgroup::"
-      
+
       - name: Run Ruff formatting check
         run: |
           echo "::group::Ruff Format Check"
           ruff format --check scripts/
           echo "::endgroup::"
-      
+
       - name: Run pytest with coverage
         run: |
           echo "::group::Pytest"
           pytest tests/ -v --cov=scripts --cov-report=term-missing --cov-report=html --cov-report=xml
           echo "::endgroup::"
-      
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,7 +64,7 @@ jobs:
           path: htmlcov/
           if-no-files-found: warn
           retention-days: 30
-      
+
       - name: Comment coverage on PR
         if: github.event_name == 'pull_request'
         uses: py-cov-action/python-coverage-comment-action@v3

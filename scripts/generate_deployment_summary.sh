@@ -69,7 +69,7 @@ echo "" >> $GITHUB_STEP_SUMMARY
 if [ -f "deployment-results.json" ] && [ "$total_workspaces" -gt 0 ]; then
     echo "#### Deployment Results:" >> $GITHUB_STEP_SUMMARY
     echo "" >> $GITHUB_STEP_SUMMARY
-    
+
     # Read and display each workspace status
     jq -r '.workspaces[] | "\(.status)|\(.full_name)|\(.error)"' deployment-results.json | while IFS='|' read -r status full_name error; do
         if [ "$status" == "success" ]; then

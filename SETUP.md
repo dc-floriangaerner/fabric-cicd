@@ -266,7 +266,7 @@ For each workspace folder in `workspaces/`, create three Fabric workspaces:
 - `[T] Analytics Hub` - Test
 - `[P] Analytics Hub` - Production
 
-**Important**: 
+**Important**:
 - Workspace names MUST match the folder names with appropriate stage prefix
 - Prefixes are case-sensitive: `[D] `, `[T] `, `[P] ` (with space after bracket)
 - If auto-creation is enabled, these workspaces will be created automatically on first deployment
@@ -283,9 +283,9 @@ core:
     dev: "[D] Fabric Blueprint"
     test: "[T] Fabric Blueprint"
     prod: "[P] Fabric Blueprint"
-  
+
   repository_directory: "."  # Relative to config.yml location
-  
+
   parameter: "parameter.yml"  # References parameter.yml in same folder
 
 publish:
@@ -509,7 +509,7 @@ core:
     dev: "[D] New Workspace"
     test: "[T] New Workspace"
     prod: "[P] New Workspace"
-  
+
   repository_directory: "."
   parameter: "parameter.yml"
 

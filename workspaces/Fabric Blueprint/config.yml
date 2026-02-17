@@ -3,9 +3,9 @@ core:
     dev: "[D] Fabric Blueprint"
     test: "[T] Fabric Blueprint"
     prod: "[P] Fabric Blueprint"
-  
+
   repository_directory: "."  # Relative to config.yml location
-  
+
   parameter: "parameter.yml"  # References existing parameter.yml
 
 publish:

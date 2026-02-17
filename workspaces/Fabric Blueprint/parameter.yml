@@ -9,7 +9,7 @@ find_replace:
           _ALL_: "$items.Lakehouse.lakehouse_silver.sqlendpoint"
       is_regex: "true"
       item_type: "SemanticModel"
-      
+
     # Replace Database ID in Semantic Model with Database Name
     - find_value: 'database\s*=\s*Sql\.Database\s*\(\s*"[^"]+"\s*,\s*"([^"]+)"'
       replace_value:

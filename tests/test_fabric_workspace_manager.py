@@ -54,9 +54,7 @@ class TestCheckWorkspaceExists:
 
     def test_workspace_api_error(self, mock_fabric_client):
         """Test handling API errors when checking workspace."""
-        mock_fabric_client.core.workspaces.list_workspaces.side_effect = HttpResponseError(
-            message="API Error"
-        )
+        mock_fabric_client.core.workspaces.list_workspaces.side_effect = HttpResponseError(message="API Error")
 
         with pytest.raises(Exception, match="Failed to list workspaces"):
             check_workspace_exists("[D] Test", mock_fabric_client)
@@ -90,9 +88,7 @@ class TestCreateWorkspace:
 
     def test_create_workspace_api_error(self, mock_fabric_client):
         """Test handling API errors during workspace creation."""
-        mock_fabric_client.core.workspaces.create_workspace.side_effect = HttpResponseError(
-            message="API Error"
-        )
+        mock_fabric_client.core.workspaces.create_workspace.side_effect = HttpResponseError(message="API Error")
 
         with pytest.raises(HttpResponseError):
             create_workspace("[D] Test", "capacity-id", mock_fabric_client)
@@ -154,84 +150,54 @@ class TestAssignWorkspaceRole:
 class TestEnsureWorkspaceExists:
     """Test suite for ensure_workspace_exists function."""
 
-    @patch('scripts.fabric_workspace_manager.check_workspace_exists')
+    @patch("scripts.fabric_workspace_manager.check_workspace_exists")
     def test_ensure_existing_workspace(self, mock_check, mock_fabric_client):
         """Test ensuring an existing workspace."""
         mock_check.return_value = "existing-workspace-id"
 
-        result = ensure_workspace_exists(
-            "[D] Test",
-            "capacity-id",
-            None,
-            None,
-            mock_fabric_client
-        )
+        result = ensure_workspace_exists("[D] Test", "capacity-id", None, None, mock_fabric_client)
 
         assert result == "existing-workspace-id"
 
-    @patch('scripts.fabric_workspace_manager.check_workspace_exists')
-    @patch('scripts.fabric_workspace_manager.create_workspace')
+    @patch("scripts.fabric_workspace_manager.check_workspace_exists")
+    @patch("scripts.fabric_workspace_manager.create_workspace")
     def test_ensure_create_new_workspace(self, mock_create, mock_check, mock_fabric_client):
         """Test ensuring workspace when it doesn't exist."""
         mock_check.return_value = None
         mock_create.return_value = "new-workspace-id"
 
-        result = ensure_workspace_exists(
-            "[D] Test",
-            "capacity-id",
-            None,
-            None,
-            mock_fabric_client
-        )
+        result = ensure_workspace_exists("[D] Test", "capacity-id", None, None, mock_fabric_client)
 
         assert result == "new-workspace-id"
         mock_create.assert_called_once()
 
-    @patch('scripts.fabric_workspace_manager.check_workspace_exists')
-    @patch('scripts.fabric_workspace_manager.create_workspace')
-    @patch('scripts.fabric_workspace_manager.add_workspace_admin')
-    def test_ensure_workspace_with_role_assignment(
-        self, mock_add_admin, mock_create, mock_check, mock_fabric_client
-    ):
+    @patch("scripts.fabric_workspace_manager.check_workspace_exists")
+    @patch("scripts.fabric_workspace_manager.create_workspace")
+    @patch("scripts.fabric_workspace_manager.add_workspace_admin")
+    def test_ensure_workspace_with_role_assignment(self, mock_add_admin, mock_create, mock_check, mock_fabric_client):
         """Test ensuring workspace with role assignment."""
         mock_check.return_value = None
         mock_create.return_value = "new-workspace-id"
 
-        result = ensure_workspace_exists(
-            "[D] Test",
-            "capacity-id",
-            "sp-object-id",
-            None,
-            mock_fabric_client
-        )
+        result = ensure_workspace_exists("[D] Test", "capacity-id", "sp-object-id", None, mock_fabric_client)
 
         assert result == "new-workspace-id"
-        mock_add_admin.assert_called_once_with(
-            "new-workspace-id",
-            "sp-object-id",
-            mock_fabric_client
-        )
+        mock_add_admin.assert_called_once_with("new-workspace-id", "sp-object-id", mock_fabric_client)
 
-    @patch('scripts.fabric_workspace_manager.check_workspace_exists')
+    @patch("scripts.fabric_workspace_manager.check_workspace_exists")
     def test_ensure_workspace_check_fails(self, mock_check, mock_fabric_client):
         """Test ensure workspace when check fails."""
         mock_check.side_effect = Exception("API Error")
 
         with pytest.raises(Exception, match="API Error"):
-            ensure_workspace_exists(
-                "[D] Test",
-                "capacity-id",
-                None,
-                None,
-                mock_fabric_client
-            )
+            ensure_workspace_exists("[D] Test", "capacity-id", None, None, mock_fabric_client)
 
 
 @pytest.mark.integration
 class TestWorkspaceManagementIntegration:
     """Integration tests for workspace management workflow."""
 
-    @patch('scripts.fabric_workspace_manager.FabricClient')
+    @patch("scripts.fabric_workspace_manager.FabricClient")
     def test_full_workspace_lifecycle(self, mock_client_class):
         """Test complete workspace creation and role assignment workflow."""
         # This is a placeholder for integration testing
