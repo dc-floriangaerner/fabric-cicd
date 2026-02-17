@@ -143,6 +143,12 @@ def get_workspace_folders(workspaces_dir: str) -> list[str]:
         folder.name for folder in workspaces_path.iterdir() if folder.is_dir() and (folder / CONFIG_FILE).exists()
     ]
 
+    if not workspace_folders:
+        raise ValueError(
+            f"No workspace folders with '{CONFIG_FILE}' found in {workspaces_dir}. "
+            "Each workspace folder must contain a config.yml file."
+        )
+
     return sorted(workspace_folders)
 
 

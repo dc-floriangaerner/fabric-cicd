@@ -49,8 +49,8 @@ class TestDiscoverWorkspaceFolders:
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
 
-        workspaces = discover_workspace_folders(str(empty_dir))
-        assert len(workspaces) == 0
+        with pytest.raises(ValueError, match="No workspace folders with 'config.yml' found"):
+            discover_workspace_folders(str(empty_dir))
 
 
 class TestGetWorkspaceNameForEnvironment:

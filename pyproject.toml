@@ -55,7 +55,8 @@ exclude = [
 [tool.ruff.lint]
 # Enable rule sets: pycodestyle errors (E), Pyflakes (F), warnings (W), 
 # isort (I), pyupgrade (UP), flake8-bugbear (B), simplify (SIM), Ruff-specific (RUF)
-select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+# flake8-print (T20) - prevent print statements
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "T20"]
 
 # No rules ignored - all print statements replaced with logging in Phase 2
 ignore = []

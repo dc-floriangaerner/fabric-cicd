@@ -40,6 +40,11 @@ env/
 # Logs
 *.log
 
+# Testing
+.coverage
+coverage.xml
+htmlcov/
+
 # Environment variables
 .env
 .env.local
