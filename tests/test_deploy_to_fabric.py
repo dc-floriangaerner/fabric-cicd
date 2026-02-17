@@ -176,6 +176,4 @@ class TestDeploymentIntegration:
     @patch('scripts.deploy_to_fabric.ClientSecretCredential')
     def test_deployment_workflow_mock(self, mock_cred, mock_client, temp_workspace_dir, mock_env_vars):
         """Test full deployment workflow with mocked dependencies."""
-        # This is a placeholder for integration testing
-        # Full implementation would require more complex mocking of fabric_cicd library
-        pass
+        pytest.xfail("Integration deployment workflow test not yet implemented")

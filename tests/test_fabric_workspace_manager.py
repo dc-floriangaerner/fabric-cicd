@@ -234,6 +234,4 @@ class TestWorkspaceManagementIntegration:
     @patch('scripts.fabric_workspace_manager.FabricClient')
     def test_full_workspace_lifecycle(self, mock_client_class):
         """Test complete workspace creation and role assignment workflow."""
-        # This is a placeholder for integration testing
-        # Full implementation would require more complex mocking
-        pass
+        pytest.xfail("Integration deployment workflow test not yet implemented")

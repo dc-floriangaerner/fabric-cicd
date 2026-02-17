@@ -192,9 +192,9 @@ def deploy_workspace(
         workspace_name = get_workspace_name_from_config(config, environment)
         config_file_path = str(Path(workspaces_dir) / workspace_folder / CONFIG_FILE)
 
-        logger.info(f"→ Target workspace: {workspace_name}")
-        logger.info(f"→ Config file: {config_file_path}")
-        logger.info(f"→ Environment: {environment}")
+        logger.info(f"-> Target workspace: {workspace_name}")
+        logger.info(f"-> Config file: {config_file_path}")
+        logger.info(f"-> Environment: {environment}")
 
         # Create Fabric API client
         fabric_client = create_fabric_client(token_credential)
@@ -207,21 +207,21 @@ def deploy_workspace(
             fabric_client=fabric_client,
             entra_admin_group_id=entra_admin_group_id,
         )
-        logger.info(f"→ Workspace ensured with ID: {workspace_id}")
+        logger.info(f"-> Workspace ensured with ID: {workspace_id}")
 
         # Deploy using config.yml
-        logger.info("→ Deploying items using config-based deployment...")
+        logger.info("-> Deploying items using config-based deployment...")
         deploy_with_config(
             config_file_path=config_file_path, environment=environment, token_credential=token_credential
         )
 
-        logger.info(f"\n✓ Deployment to {workspace_name} completed successfully!\n")
+        logger.info(f"\n[OK] Deployment to {workspace_name} completed successfully!\n")
         return DeploymentResult(workspace_folder=workspace_folder, workspace_name=workspace_name, success=True)
 
     except Exception as e:
         error_message = str(e)
         display_name = workspace_name if workspace_name else workspace_folder
-        logger.error(f"\n✗ ERROR: Deployment failed for workspace '{display_name}': {error_message}\n")
+        logger.error(f"\n[FAIL] ERROR: Deployment failed for workspace '{display_name}': {error_message}\n")
         return DeploymentResult(
             workspace_folder=workspace_folder,
             workspace_name=workspace_name if workspace_name else workspace_folder,
@@ -237,10 +237,10 @@ def create_azure_credential() -> ClientSecretCredential | DefaultAzureCredential
     client_secret = os.getenv(ENV_AZURE_CLIENT_SECRET)
 
     if client_id and tenant_id and client_secret:
-        logger.info("→ Using ClientSecretCredential for authentication")
+        logger.info("-> Using ClientSecretCredential for authentication")
         return ClientSecretCredential(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
     else:
-        logger.info("→ Using DefaultAzureCredential for authentication (local development)")
+        logger.info("-> Using DefaultAzureCredential for authentication (local development)")
         return DefaultAzureCredential()
 
 
@@ -273,7 +273,7 @@ def discover_workspace_folders(workspaces_directory: str) -> list[str]:
         FileNotFoundError: If workspaces directory doesn't exist
     """
     workspace_folders = get_workspace_folders(workspaces_directory)
-    logger.info(f"→ Discovered {len(workspace_folders)} workspace(s): {', '.join(workspace_folders)}\n")
+    logger.info(f"-> Discovered {len(workspace_folders)} workspace(s): {', '.join(workspace_folders)}\n")
     return workspace_folders
 
 
@@ -338,14 +338,14 @@ def print_deployment_summary(summary: DeploymentSummary) -> None:
             failed.append((result.workspace_name, result.error_message))
 
     if successful:
-        logger.info("\n✓ SUCCESSFUL DEPLOYMENTS:")
+        logger.info("\n[OK] SUCCESSFUL DEPLOYMENTS:")
         for full_name in successful:
-            logger.info(f"  ✓ {full_name}")
+            logger.info(f"  [OK] {full_name}")
 
     if failed:
-        logger.error("\n✗ FAILED DEPLOYMENTS:")
+        logger.error("\n[FAIL] FAILED DEPLOYMENTS:")
         for full_name, error in failed:
-            logger.error(f"  ✗ {full_name}")
+            logger.error(f"  [FAIL] {full_name}")
             logger.error(f"    Error: {error}")
 
     logger.info(f"\n{SEPARATOR_LONG}")
@@ -439,6 +439,8 @@ def main():
     sys.stderr.reconfigure(line_buffering=True, write_through=True)
 
     # Enable debugging if ACTIONS_RUNNER_DEBUG is set
+    # Note: This only affects fabric_cicd library logging.
+    # Local script logger (from logger.py) remains at INFO level.
     if os.getenv(ENV_ACTIONS_RUNNER_DEBUG, "false").lower() == "true":
         change_log_level("DEBUG")
 
@@ -488,7 +490,7 @@ def main():
         deployment_results_json = build_deployment_results_json(summary)
         with open(RESULTS_FILENAME, "w", encoding="utf-8") as f:
             json.dump(deployment_results_json, f, indent=2)
-        logger.info(f"\n→ Deployment results written to {RESULTS_FILENAME}")
+        logger.info(f"\n-> Deployment results written to {RESULTS_FILENAME}")
 
         # Print comprehensive deployment summary
         print_deployment_summary(summary)
@@ -502,10 +504,10 @@ def main():
             sys.exit(EXIT_SUCCESS)
 
     except (ValueError, FileNotFoundError) as e:
-        logger.error(f"\n✗ VALIDATION ERROR: {e!s}\n")
+        logger.error(f"\n[FAIL] VALIDATION ERROR: {e!s}\n")
         sys.exit(EXIT_FAILURE)
     except Exception as e:
-        logger.error(f"\n✗ CRITICAL ERROR: {e!s}\n")
+        logger.error(f"\n[FAIL] CRITICAL ERROR: {e!s}\n")
         sys.exit(EXIT_FAILURE)
 
 
