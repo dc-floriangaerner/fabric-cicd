@@ -20,6 +20,7 @@ dependencies = [
     "fabric-cicd>=0.1.0",
     "azure-identity>=1.19.1",
     "pyyaml>=6.0",
+    "microsoft-fabric-api>=0.1.0b2",
 ]
 
 [project.optional-dependencies]
@@ -56,8 +57,8 @@ exclude = [
 # isort (I), pyupgrade (UP), flake8-bugbear (B), simplify (SIM), Ruff-specific (RUF)
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 
-# Initially ignore T201 (print statements) - will be addressed in phase 2.7
-ignore = ["T201"]
+# No rules ignored - all print statements replaced with logging in Phase 2
+ignore = []
 
 # Allow autofix for all enabled rules
 fixable = ["ALL"]
