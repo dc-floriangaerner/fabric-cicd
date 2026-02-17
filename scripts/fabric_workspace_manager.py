@@ -122,7 +122,7 @@ def check_role_assignment_exists(workspace_id: str, principal_id: str, role: str
 
 def _assign_workspace_role(
     workspace_id: str,
-    principal_id: str,
+    principal_id: str | None,
     principal_type: Literal["ServicePrincipal", "Group"],
     role: str,
     fabric_client: FabricClient,
@@ -183,7 +183,9 @@ def _assign_workspace_role(
             raise Exception(f"{principal_description} role assignment failed: {e!s}") from e
 
 
-def add_workspace_admin(workspace_id: str, service_principal_object_id: str, fabric_client: FabricClient) -> None:
+def add_workspace_admin(
+    workspace_id: str, service_principal_object_id: str | None, fabric_client: FabricClient
+) -> None:
     """Add a service principal as admin to a workspace using SDK.
 
     Args:
@@ -204,7 +206,7 @@ def add_workspace_admin(workspace_id: str, service_principal_object_id: str, fab
     )
 
 
-def add_entra_id_group_admin(workspace_id: str, entra_group_id: str, fabric_client: FabricClient) -> None:
+def add_entra_id_group_admin(workspace_id: str, entra_group_id: str | None, fabric_client: FabricClient) -> None:
     """Add an Entra ID (Azure AD) group as admin to a workspace using SDK.
 
     Args:
@@ -297,7 +299,7 @@ def ensure_workspace_exists(
 
         # Ensure access for service principal and admin group
         add_workspace_admin(workspace_id, service_principal_object_id, fabric_client)
-        add_entra_id_group_admin(workspace_id, entra_admin_group_id or "", fabric_client)
+        add_entra_id_group_admin(workspace_id, entra_admin_group_id, fabric_client)
 
         logger.info(f"  ✓ Workspace '{workspace_name}' is ready for deployment")
         return workspace_id
