@@ -109,6 +109,7 @@ omit = [
     "tests/*",
     "*/__init__.py",
 ]
+relative_files = true
 
 [tool.coverage.report]
 exclude_lines = [
