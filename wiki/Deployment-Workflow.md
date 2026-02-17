@@ -127,12 +127,12 @@ The deployment script automatically discovers and deploys all workspace folders:
 
 ```
 workspaces/
-├── Fabric Blueprint/      → Deploys to [D/T/P] Fabric Blueprint
-├── Analytics Hub/         → Deploys to [D/T/P] Analytics Hub
-└── Data Engineering/      → Deploys to [D/T/P] Data Engineering
+└── Fabric Blueprint/      → Deploys to [D/T/P] Fabric Blueprint
 ```
 
-**All workspaces deploy in a single run** - if any fails, all are rolled back.
+Additional workspaces can be added by duplicating the `Fabric Blueprint` folder structure.
+
+> **Note**: Atomic rollback is a planned feature. Currently, if a workspace deployment fails, the pipeline stops and reports the error, but previously deployed workspaces in that run are not automatically rolled back.
 
 ## Best Practices
 

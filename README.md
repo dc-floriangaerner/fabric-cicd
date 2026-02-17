@@ -1,10 +1,29 @@
 # Fabric CI/CD Reference Architecture
 
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
 A reference architecture for implementing CI/CD pipelines for Microsoft Fabric workspaces using GitHub Actions and the `fabric-cicd` Python library. Supports deploying multiple workspaces from a single repository with automatic change detection.
 
 ## Overview
 
 This repository demonstrates best practices for deploying Microsoft Fabric workspace items (Lakehouses, Notebooks, Pipelines, Semantic Models, etc.) across multiple workspaces and environments using Git-based version control and automated deployment pipelines.
+
+## Quick Start
+
+**Want to get started quickly?** Follow these steps:
+
+1. **Fork this repository** or clone it as a template
+2. **Set up Azure Service Principal** with Fabric permissions ([Setup Guide](https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki/Setup-Guide))
+3. **Configure GitHub Secrets**: `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`
+4. **Create or configure Fabric workspaces**: `[D] Fabric Blueprint`, `[T] Fabric Blueprint`, `[P] Fabric Blueprint`
+5. **Update workspace configuration**: Edit `workspaces/Fabric Blueprint/config.yml` and `parameter.yml`
+6. **Make changes** and create a Pull Request to `main`
+7. **Merge PR** → Automatic deployment to Dev environment
+8. **Verify** → Manually deploy to Test and Production via GitHub Actions
+
+For detailed instructions, see the [GitHub Wiki](https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki).
 
 ### Architecture
 
@@ -20,21 +39,16 @@ This repository demonstrates best practices for deploying Microsoft Fabric works
 
 ```
 workspaces/
-├── Fabric Blueprint/
-│   ├── parameter.yml          # Workspace-specific configuration
-│   ├── 1_Bronze/              # Raw data ingestion
-│   ├── 2_Silver/              # Transformed/cleansed data
-│   ├── 3_Gold/                # Business-ready analytics
-│   └── 4_Analytics/           # Semantic models, reports, agents
-├── Analytics Hub/
-│   ├── parameter.yml          # Workspace-specific configuration
-│   └── ...                    # Workspace items
-└── Data Engineering/
-    ├── parameter.yml          # Workspace-specific configuration
-    └── ...                    # Workspace items
+└── Fabric Blueprint/           # Single template workspace
+    ├── config.yml              # Workspace names per environment
+    ├── parameter.yml           # Workspace-specific configuration  
+    ├── 1_Bronze/               # Raw data ingestion
+    ├── 2_Silver/               # Transformed/cleansed data
+    ├── 3_Gold/                 # Business-ready analytics
+    └── 4_Analytics/            # Semantic models, reports, agents
 ```
 
-Each subfolder in `workspaces/` represents a separate Fabric workspace with its own configuration and items.
+Each subfolder in `workspaces/` represents a separate Fabric workspace with its own configuration and items. The `Fabric Blueprint` folder serves as the canonical template for creating new workspaces.
 
 ### Workspace Naming Convention
 
@@ -43,7 +57,6 @@ Workspace names are defined in each workspace's `config.yml` file for each envir
 | Folder | Dev Workspace | Test Workspace | Prod Workspace |
 |--------|---------------|----------------|----------------|
 | `Fabric Blueprint` | `[D] Fabric Blueprint` | `[T] Fabric Blueprint` | `[P] Fabric Blueprint` |
-| `Analytics Hub` | `[D] Analytics Hub` | `[T] Analytics Hub` | `[P] Analytics Hub` |
 
 Workspace names are explicitly configured in `config.yml` per workspace folder - not auto-generated from folder names.
 
@@ -57,10 +70,11 @@ Workspace names are explicitly configured in `config.yml` per workspace folder -
    - Fabric Workspace Admin or Contributor permissions for all target workspaces
 
 2. **Microsoft Fabric Workspaces**:
-   - Create workspaces for each environment and workspace folder:
-     - Dev: `[D] Fabric Blueprint`, `[D] Analytics Hub`, etc.
-     - Test: `[T] Fabric Blueprint`, `[T] Analytics Hub`, etc.
-     - Prod: `[P] Fabric Blueprint`, `[P] Analytics Hub`, etc.
+   - Create workspaces for each environment (using workspace folder names as base):
+     - Dev: `[D] Fabric Blueprint`
+     - Test: `[T] Fabric Blueprint`
+     - Prod: `[P] Fabric Blueprint`
+   - Or enable automatic workspace creation (see Optional Secrets below)
 
 ### GitHub Setup
 
@@ -210,16 +224,16 @@ For each workspace in the deployment:
 
 1. **Auto-Discover Workspaces** - Automatically discovers all workspace folders with `config.yml`
 2. **Authenticate** - Login using Service Principal (ClientSecretCredential)
-3. **Capture State** - Store current workspace state for rollback
-4. **Transform IDs** - Replace environment-specific IDs based on workspace `parameter.yml`
-5. **Deploy Items** - Publish items using `fabric-cicd` library
-6. **Clean Up Orphans** - Remove items not in repository
-7. **Rollback on Failure** - If any workspace fails, rollback all previously deployed workspaces
-8. **Report Status** - Display deployment summary in GitHub Actions
+3. **Transform IDs** - Replace environment-specific IDs based on workspace `parameter.yml`
+4. **Deploy Items** - Publish items using `fabric-cicd` library
+5. **Clean Up Orphans** - Remove items not in repository
+6. **Report Status** - Display deployment summary in GitHub Actions
 
-### Atomic Deployment with Rollback
+### Atomic Deployment with Rollback (Planned Feature)
 
-All workspace deployments in a single workflow run must succeed together:
+> **Note**: Atomic rollback is planned for future implementation. Currently, if a workspace deployment fails, the pipeline stops and reports the error, but previously deployed workspaces in that run are not automatically rolled back.
+
+**Planned behavior**: All workspace deployments in a single workflow run will succeed together:
 
 ```
 Deployment Order:
@@ -227,13 +241,13 @@ Deployment Order:
 2. Workspace B → Success ✓
 3. Workspace C → FAILURE ✗
 
-Rollback Triggered:
+Rollback Triggered (Planned):
 1. Rollback Workspace B → Restored
 2. Rollback Workspace A → Restored
 3. Exit with error and failure report
 ```
 
-This ensures environments remain in a consistent state even when deployments fail.
+This will ensure environments remain in a consistent state even when deployments fail.
 
 ### ID Transformation
 
@@ -350,11 +364,6 @@ This allows each workspace to have different transformation rules independent of
 - Changes to `.github/`, `scripts/`, `README.md` etc. will NOT trigger automatic deployment
 - Use manual workflow dispatch to deploy without workspace changes
 
-**Rollback fails after deployment error**
-- Review deployment logs to identify which workspace failed
-- Check if Service Principal has permissions to modify all workspaces
-- May require manual intervention to restore workspace state
-
 ### Viewing Logs
 
 1. Go to **Actions** tab in GitHub
@@ -423,14 +432,15 @@ This approach allows you to:
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a Pull Request
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+- Reporting bugs and requesting features
+- Development workflow and branch strategy
+- Coding standards and testing requirements
+- Pull Request process
 
 ## License
 
-This project follows Microsoft's recommended practices for Fabric CI/CD.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Resources
 

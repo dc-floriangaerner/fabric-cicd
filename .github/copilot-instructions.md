@@ -63,8 +63,12 @@ cat scripts/deployment_config.py
 
 ### Getting Help
 
-- **README.md** - Overview and usage
-- **SETUP.md** - Detailed setup instructions
+- **README.md** - Overview and Quick Start
+- **[GitHub Wiki](https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki)** - Comprehensive reference documentation
+  - [Setup Guide](https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki/Setup-Guide) - Detailed setup instructions
+  - [Workspace Configuration](https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki/Workspace-Configuration) - Configure workspaces
+  - [Deployment Workflow](https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki/Deployment-Workflow) - Understand CI/CD pipeline
+  - [Troubleshooting](https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki/Troubleshooting) - Common issues and solutions
 - **.github/instructions/** - Path-specific coding guidelines
 - Sections below - Detailed architecture and patterns
 
@@ -78,26 +82,20 @@ This is a **reference architecture** for Microsoft Fabric CI/CD supporting **mul
 
 ## Multi-Workspace Architecture
 
-This repository supports deploying multiple Fabric workspaces from a single repository:
+This repository supports deploying multiple Fabric workspaces from a single repository. The `Fabric Blueprint` folder serves as the canonical template workspace:
 
 ```
 workspaces/
-├── Fabric Blueprint/
-│   ├── config.yml             # Workspace names per environment
-│   ├── parameter.yml          # ID transformation rules
-│   ├── 1_Bronze/
-│   ├── 2_Silver/
-│   ├── 3_Gold/
-│   └── 4_Analytics/
-├── Analytics Hub/
-│   ├── config.yml
-│   ├── parameter.yml
-│   └── ...
-└── Data Engineering/
-    ├── config.yml
-    ├── parameter.yml
-    └── ...
+└── Fabric Blueprint/           # Template workspace
+    ├── config.yml              # Workspace names per environment
+    ├── parameter.yml           # ID transformation rules
+    ├── 1_Bronze/
+    ├── 2_Silver/
+    ├── 3_Gold/
+    └── 4_Analytics/
 ```
+
+To add additional workspaces, duplicate the `Fabric Blueprint` structure and customize the configuration files.
 
 **Workspace Naming**: Names are explicitly configured in `config.yml` per workspace folder:
 - Dev: Defined in `config.yml` under `core.workspace.dev` (e.g., `[D] Fabric Blueprint`)

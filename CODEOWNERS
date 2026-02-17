@@ -1,0 +1,24 @@
+# Code Owners for Fabric CI/CD Reference Architecture
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @dc-floriangaerner
+
+# GitHub workflows and actions
+/.github/ @dc-floriangaerner
+
+# Python deployment scripts
+/scripts/ @dc-floriangaerner
+
+# Test suite
+/tests/ @dc-floriangaerner
+
+# Workspace definitions
+/workspaces/ @dc-floriangaerner
+
+# Documentation
+/docs/ @dc-floriangaerner
+/wiki/ @dc-floriangaerner
+README.md @dc-floriangaerner
+SETUP.md @dc-floriangaerner
+CONTRIBUTING.md @dc-floriangaerner
