@@ -41,7 +41,7 @@ def check_workspace_exists(workspace_name: str, fabric_client: FabricClient) -> 
         raise Exception(f"Failed to list workspaces: {e!s}") from e
 
 
-def create_workspace(workspace_name: str, capacity_id: str, fabric_client: FabricClient) -> str:
+def create_workspace(workspace_name: str, capacity_id: str | None, fabric_client: FabricClient) -> str:
     """Create a new Fabric workspace with the specified capacity using SDK.
 
     Args:

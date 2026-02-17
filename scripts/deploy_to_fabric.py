@@ -204,8 +204,8 @@ def deploy_workspace(
             workspace_name=workspace_name,
             capacity_id=capacity_id,
             service_principal_object_id=service_principal_object_id,
-            fabric_client=fabric_client,
             entra_admin_group_id=entra_admin_group_id,
+            fabric_client=fabric_client,
         )
         logger.info(f"-> Workspace ensured with ID: {workspace_id}")
 
