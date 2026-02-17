@@ -262,7 +262,7 @@ def assign_workspace_role(
 
 def ensure_workspace_exists(
     workspace_name: str,
-    capacity_id: str,
+    capacity_id: str | None,
     service_principal_object_id: str | None,
     entra_admin_group_id: str | None,
     fabric_client: FabricClient,
