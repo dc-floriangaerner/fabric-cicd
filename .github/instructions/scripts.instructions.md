@@ -20,7 +20,7 @@ Scripts in the `scripts/` directory are organized as a Python package:
 - **Python Version**: 3.11+
 - **Type Hints**: Always use type hints for function parameters and return types
 - **Error Handling**: Catch specific exceptions, use `sys.exit(1)` for errors
-- **Logging**: Use `print()` statements for GitHub Actions visibility (not logging module)
+- **Logging**: Use centralized logger from scripts.logger module: `logger = get_logger(__name__)`
 - **Docstrings**: Include for all public functions with Args and Returns sections
 
 ### Code Quality with Ruff
@@ -52,13 +52,16 @@ ruff format scripts/
 
 ```python
 from azure.core.exceptions import HttpResponseError
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 try:
     # API operation
     result = client.do_something()
 except HttpResponseError as e:
     # Use str(e) to get error message, NOT e.message
-    print(f"ERROR: Operation failed: {str(e)}")
+    logger.error(f"Operation failed: {str(e)}")
     sys.exit(1)
 ```
 
