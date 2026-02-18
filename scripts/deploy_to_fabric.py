@@ -27,12 +27,15 @@ from .deployment_config import (
     ENV_DEPLOYMENT_SP_OBJECT_ID,
     ENV_FABRIC_ADMIN_GROUP_ID,
     ENV_FABRIC_CAPACITY_ID,
+    ENV_GITHUB_ACTIONS,
     EXIT_FAILURE,
     EXIT_SUCCESS,
     RESULTS_FILENAME,
     SEPARATOR_LONG,
     SEPARATOR_SHORT,
     VALID_ENVIRONMENTS,
+    WIKI_SETUP_GUIDE_URL,
+    WIKI_TROUBLESHOOTING_URL,
 )
 from .fabric_workspace_manager import ensure_workspace_exists
 from .logger import get_logger
@@ -231,7 +234,11 @@ def deploy_workspace(
 
 
 def create_azure_credential() -> ClientSecretCredential | DefaultAzureCredential:
-    """Create and return the appropriate Azure credential based on environment."""
+    """Create and return the appropriate Azure credential based on environment.
+
+    Raises:
+        ValueError: If running in GitHub Actions but Service Principal secrets are not configured.
+    """
     client_id = os.getenv(ENV_AZURE_CLIENT_ID)
     tenant_id = os.getenv(ENV_AZURE_TENANT_ID)
     client_secret = os.getenv(ENV_AZURE_CLIENT_SECRET)
@@ -239,9 +246,44 @@ def create_azure_credential() -> ClientSecretCredential | DefaultAzureCredential
     if client_id and tenant_id and client_secret:
         logger.info("-> Using ClientSecretCredential for authentication")
         return ClientSecretCredential(tenant_id=tenant_id, client_id=client_id, client_secret=client_secret)
-    else:
-        logger.info("-> Using DefaultAzureCredential for authentication (local development)")
-        return DefaultAzureCredential()
+
+    # Detect partial configuration — some vars set but not all
+    provided = [v for v in [client_id, tenant_id, client_secret] if v]
+    missing_vars = []
+    if not client_id:
+        missing_vars.append(ENV_AZURE_CLIENT_ID)
+    if not tenant_id:
+        missing_vars.append(ENV_AZURE_TENANT_ID)
+    if not client_secret:
+        missing_vars.append(ENV_AZURE_CLIENT_SECRET)
+
+    is_ci = os.getenv(ENV_GITHUB_ACTIONS, "").lower() == "true"
+
+    if is_ci or provided:
+        # In GitHub Actions (or with partial creds): fail fast with actionable guidance
+        if provided:
+            hint = (
+                f"The following secrets are set but incomplete — missing: {', '.join(missing_vars)}. "
+                "All three must be configured together."
+            )
+        else:
+            hint = (
+                f"None of the required GitHub secrets are configured: "
+                f"{ENV_AZURE_CLIENT_ID}, {ENV_AZURE_TENANT_ID}, {ENV_AZURE_CLIENT_SECRET}."
+            )
+        raise ValueError(
+            f"{hint}\n"
+            "\n"
+            "  These secrets authenticate the deployment pipeline to Microsoft Fabric\n"
+            "  using a Service Principal (Entra ID App Registration).\n"
+            "\n"
+            f"  Setup instructions : {WIKI_SETUP_GUIDE_URL}\n"
+            f"  Troubleshooting    : {WIKI_TROUBLESHOOTING_URL}#clientsecretcredential-authentication-failed\n"
+        )
+
+    # Local development fallback — no CI env, no creds set
+    logger.info("-> Using DefaultAzureCredential for authentication (local development)")
+    return DefaultAzureCredential()
 
 
 def create_fabric_client(token_credential: ClientSecretCredential | DefaultAzureCredential) -> FabricClient:

@@ -112,28 +112,46 @@ class TestCreateAzureCredential:
         assert credential is not None
 
     def test_create_credential_without_service_principal(self, monkeypatch):
-        """Test creating credential falls back to DefaultAzureCredential."""
-        # Remove service principal env vars
+        """Test creating credential falls back to DefaultAzureCredential outside CI."""
         monkeypatch.delenv("AZURE_CLIENT_ID", raising=False)
         monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
         monkeypatch.delenv("AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
 
         credential = create_azure_credential()
 
-        # Should return DefaultAzureCredential
+        # Should return DefaultAzureCredential when not in CI and no creds set
         assert credential is not None
 
-    def test_create_credential_partial_env_vars(self, monkeypatch):
-        """Test creating credential with incomplete service principal env vars."""
-        # Only set some env vars (incomplete)
+    def test_create_credential_partial_env_vars_raises_in_ci(self, monkeypatch):
+        """Test that partial credentials raise a helpful ValueError in GitHub Actions."""
         monkeypatch.setenv("AZURE_CLIENT_ID", "test-client-id")
         monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
         monkeypatch.delenv("AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
 
-        credential = create_azure_credential()
+        with pytest.raises(ValueError, match="AZURE_TENANT_ID"):
+            create_azure_credential()
 
-        # Should fall back to DefaultAzureCredential
-        assert credential is not None
+    def test_create_credential_partial_env_vars_raises_outside_ci(self, monkeypatch):
+        """Test that partial credentials raise a helpful ValueError even outside CI."""
+        monkeypatch.setenv("AZURE_CLIENT_ID", "test-client-id")
+        monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
+        monkeypatch.delenv("AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+
+        with pytest.raises(ValueError, match="AZURE_TENANT_ID"):
+            create_azure_credential()
+
+    def test_create_credential_no_creds_in_ci_raises(self, monkeypatch):
+        """Test that missing all credentials in GitHub Actions raises a clear ValueError."""
+        monkeypatch.delenv("AZURE_CLIENT_ID", raising=False)
+        monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
+        monkeypatch.delenv("AZURE_CLIENT_SECRET", raising=False)
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+
+        with pytest.raises(ValueError, match="AZURE_CLIENT_ID"):
+            create_azure_credential()
 
 
 class TestCreateFabricClient:

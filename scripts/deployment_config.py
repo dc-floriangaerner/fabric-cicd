@@ -26,3 +26,8 @@ ENV_FABRIC_CAPACITY_ID = "FABRIC_CAPACITY_ID"
 ENV_DEPLOYMENT_SP_OBJECT_ID = "DEPLOYMENT_SP_OBJECT_ID"
 ENV_FABRIC_ADMIN_GROUP_ID = "FABRIC_ADMIN_GROUP_ID"
 ENV_ACTIONS_RUNNER_DEBUG = "ACTIONS_RUNNER_DEBUG"
+ENV_GITHUB_ACTIONS = "GITHUB_ACTIONS"
+
+# Wiki URLs
+WIKI_SETUP_GUIDE_URL = "https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki/Setup-Guide"
+WIKI_TROUBLESHOOTING_URL = "https://github.com/dc-floriangaerner/dc-fabric-cicd/wiki/Troubleshooting"
