@@ -82,6 +82,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Scan for unmapped IDs
+        # Pre-deployment gate: ensure all GUIDs in workspace items are covered
+        # by a find_replace rule. Prevents dev-only IDs reaching Test/Production.
+        id: id-scan
+        run: |
+          echo "::group::Unmapped ID Scan"
+          python -m scripts.check_unmapped_ids \
+            --workspaces_directory "${{ env.WORKSPACES_DIRECTORY }}"
+          echo "::endgroup::"
+        env:
+          GITHUB_ACTIONS: 'true'
+
       - name: Deploy to Fabric
         id: deploy
         run: |

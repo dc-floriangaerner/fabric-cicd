@@ -9,6 +9,7 @@ on:
     paths:
       - 'scripts/**'
       - 'tests/**'
+      - 'workspaces/**'
       - 'requirements.txt'
       - 'requirements-dev.txt'
       - 'pyproject.toml'
@@ -16,6 +17,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
+  WORKSPACES_DIRECTORY: 'workspaces'
 
 permissions:
   contents: read
@@ -41,6 +43,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+
+      - name: Scan for unmapped IDs
+        # Fail fast on PRs that add workspace items without parameter rules.
+        # Catches missing find_replace entries before they reach deployment.
+        run: |
+          echo "::group::Unmapped ID Scan"
+          python -m scripts.check_unmapped_ids \
+            --workspaces_directory "${{ env.WORKSPACES_DIRECTORY }}"
+          echo "::endgroup::"
+        env:
+          GITHUB_ACTIONS: 'true'
 
       - name: Run Ruff linting
         run: |
