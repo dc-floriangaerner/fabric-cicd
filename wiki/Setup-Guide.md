@@ -6,7 +6,7 @@ This guide walks you through setting up the CI/CD pipeline for multi-workspace F
 
 **📋 What You'll Accomplish**:
 - Create Azure Service Principal for authentication
-- Grant Fabric workspace permissions
+- Provision Fabric workspaces (manually or automatically)
 - Configure GitHub repository secrets
 - Test automated deployment to Dev environment
 
@@ -15,7 +15,7 @@ This guide walks you through setting up the CI/CD pipeline for multi-workspace F
 - [ ] Microsoft Fabric workspace access (Admin or Contributor)
 - [ ] Microsoft Entra ID tenant access to create Service Principal
 - [ ] GitHub repository with Actions enabled
-- [ ] Dev, Test, and Prod Fabric workspaces (can be auto-created or manually created)
+- [ ] Dev, Test, and Prod Fabric workspaces — either **manually pre-created** or **auto-created by the Service Principal** (see Step 2)
 
 ## Step 1: Create Azure Service Principal
 
@@ -53,18 +53,71 @@ OBJECT_ID=$(az ad sp show --id $CLIENT_ID --query id -o tsv)
 echo "DEPLOYMENT_SP_OBJECT_ID: $OBJECT_ID"
 ```
 
-## Step 2: Grant Fabric Workspace Permissions
+## Step 2: Provision Fabric Workspaces
 
-**⏱️ Time**: ~10 minutes (depends on number of workspaces)
+**⏱️ Time**: ~10 minutes (manual) / ~2 minutes (auto-creation)
 
-For **each workspace** in **each environment** (Dev, Test, Prod):
+> **Choose one approach** before continuing. You do not need to do both.
 
-1. Open the workspace in Fabric portal
-2. Click **Workspace settings** → **Manage access**
-3. Click **Add people or groups**
-4. Search for your Service Principal name (`fabric-cicd-deployment`)
-5. Assign role: **Admin** or **Contributor**
-6. Click **Add**
+---
+
+### Option A: Manually Pre-Create Workspaces (Traditional Approach)
+
+Use this option if you want full control over workspace creation, or if your Fabric tenant does not allow Service Principals to create workspaces.
+
+For **each workspace folder** in **each environment** (Dev, Test, Prod):
+
+1. Open [Fabric portal](https://app.fabric.microsoft.com) and create the workspace
+2. Name it with the correct environment prefix: `[D] <folder-name>`, `[T] <folder-name>`, `[P] <folder-name>`
+   - Example for "Fabric Blueprint": `[D] Fabric Blueprint`, `[T] Fabric Blueprint`, `[P] Fabric Blueprint`
+3. Click **Workspace settings** → **Manage access**
+4. Click **Add people or groups**
+5. Search for your Service Principal name (`fabric-cicd-deployment`)
+6. Assign role: **Contributor** (minimum) or **Admin**
+7. Click **Add**
+
+Repeat for every workspace folder defined under `workspaces/` in the repository.
+
+---
+
+### Option B: Let the Service Principal Auto-Create Workspaces *(Optional)*
+
+Use this option to skip manual workspace creation. The deployment pipeline will automatically create, configure, and grant access to all workspaces on first run.
+
+**This requires additional one-time configuration:**
+
+#### B1 — Enable Fabric Tenant Setting
+
+1. Open **Fabric Admin Portal**: https://app.fabric.microsoft.com/admin-portal
+2. Navigate to **Tenant Settings** → **Developer Settings**
+3. Find: **Service principals can create workspaces, connections, and deployment pipelines**
+4. Enable the setting and scope it to a security group that includes your Service Principal
+5. Click **Apply**
+
+#### B2 — Assign Service Principal as Capacity Administrator
+
+> **⚠️ Required in addition to the tenant setting above.** Without this, workspace creation will fail with a 403 error.
+
+1. Open **Azure Portal** → navigate to your **Fabric Capacity** resource
+2. Go to **Settings** → **Capacity administrators**
+3. Click **Add** and search for your Service Principal (`fabric-cicd-deployment`)
+4. Repeat for **each capacity** (Dev, Test, Prod if using separate capacities)
+
+#### B3 — Add Auto-Creation Secrets to GitHub
+
+Add the following secrets to your GitHub repository (see Step 3 for how to add secrets):
+
+| Secret Name | Description | Where to Find |
+|------------|-------------|---------------|
+| `FABRIC_CAPACITY_ID_DEV` | Dev Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
+| `FABRIC_CAPACITY_ID_TEST` | Test Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
+| `FABRIC_CAPACITY_ID_PROD` | Prod Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
+| `DEPLOYMENT_SP_OBJECT_ID` | Service Principal Object ID | Azure AD → Enterprise Applications |
+| `FABRIC_ADMIN_GROUP_ID` | Entra ID group for admin access | Azure AD → Groups → Object ID |
+
+Once configured, adding a new workspace is as simple as adding a new folder under `workspaces/` — the CI/CD pipeline handles everything else.
+
+---
 
 ## Step 3: Configure GitHub Secrets
 
@@ -74,7 +127,7 @@ For **each workspace** in **each environment** (Dev, Test, Prod):
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret** for each:
 
-### Required Secrets
+### Required Secrets (Always Needed)
 
 | Secret Name | Description | Where to Find |
 |------------|-------------|---------------|
@@ -82,15 +135,9 @@ For **each workspace** in **each environment** (Dev, Test, Prod):
 | `AZURE_CLIENT_SECRET` | Service Principal Secret | Azure AD App Registration → Certificates & secrets |
 | `AZURE_TENANT_ID` | Azure AD Tenant ID | Azure AD App Registration → Overview |
 
-### Optional Secrets (For Auto-Creation)
+### Optional Secrets (For Auto-Creation — Option B only)
 
-| Secret Name | Description | Where to Find |
-|------------|-------------|---------------|
-| `FABRIC_CAPACITY_ID_DEV` | Dev Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
-| `FABRIC_CAPACITY_ID_TEST` | Test Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
-| `FABRIC_CAPACITY_ID_PROD` | Prod Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
-| `DEPLOYMENT_SP_OBJECT_ID` | Service Principal Object ID | Azure AD → Enterprise Applications |
-| `FABRIC_ADMIN_GROUP_ID` | Entra ID group for admin access | Azure AD → Groups → Object ID |
+See [Step 2, Option B3](#b3--add-auto-creation-secrets-to-github) above for the full list and descriptions.
 
 ## Step 4: Test the Pipeline
 
@@ -124,7 +171,7 @@ git push origin feature/test-deployment
 You've successfully completed setup when:
 
 - [ ] Service Principal created with Client ID, Secret, and Tenant ID recorded
-- [ ] Service Principal has Contributor/Admin access to all target workspaces
+- [ ] Workspaces are accessible to the Service Principal (either manually granted or auto-creation configured)
 - [ ] All required GitHub secrets configured (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`)
 - [ ] Test deployment to Dev succeeded without errors
 - [ ] Workspace items deployed correctly to Dev workspace
