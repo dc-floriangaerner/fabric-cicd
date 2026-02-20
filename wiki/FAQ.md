@@ -30,11 +30,11 @@ No. You can use a single Service Principal with access to all workspaces (Dev, T
 
 ### What permissions does the Service Principal need?
 
-The Service Principal needs **Workspace Contributor** or **Workspace Admin** role on each target workspace. Admin role is required if you need to manage workspace settings or user access.
+The Service Principal needs **Workspace Contributor** or **Workspace Admin** role on each target workspace. Admin role is required if you need to manage workspace settings or user access. Terraform grants this automatically when creating the workspace (the creating identity becomes Admin).
 
-### Can workspaces be automatically created?
+### Do workspaces need to be created before running the deployment pipeline?
 
-Yes! Set the optional GitHub secrets (`FABRIC_CAPACITY_ID_*`, `DEPLOYMENT_SP_OBJECT_ID`, `FABRIC_ADMIN_GROUP_ID`) and workspaces will be auto-created if they don't exist during deployment.
+Yes. Workspace lifecycle is managed by Terraform (`terraform.yml`), not by the Python deployment scripts. Run Terraform first, then run the item deployment pipeline (`fabric-deploy.yml`).
 
 ## Workspace Management
 
@@ -52,11 +52,14 @@ By default, orphan cleanup is enabled, so items not present in the repository wi
 
 ### How do I add a new workspace?
 
-1. Duplicate the `workspaces/Fabric Blueprint/` folder
-2. Rename it to your workspace name
-3. Update `config.yml` with your workspace names (Dev/Test/Prod)
-4. Update `parameter.yml` with your Dev workspace IDs
-5. Commit and push to deploy
+1. Add Terraform resources for the new workspace in `terraform/main.tf`
+2. Add variable values in each `terraform/environments/*.tfvars`
+3. Create a workspace folder: `workspaces/<Workspace Name>/`
+4. Create `config.yml` with workspace names (must match the Terraform `workspace_name_*` values)
+5. Create `parameter.yml` with transformation rules
+6. Add workspace items (Lakehouses, Notebooks, etc.)
+7. Run (or trigger) `terraform.yml` to provision the workspace
+8. Commit and push to trigger item deployment
 
 ## Deployment
 
@@ -160,9 +163,8 @@ unpublish:
 ### Can I customize the deployment script?
 
 Yes! The deployment scripts are in `scripts/` directory:
-- `deploy_to_fabric.py` - Main deployment orchestration
-- `fabric_workspace_manager.py` - Workspace operations
-- `deployment_config.py` - Configuration constants
+- `deploy_to_fabric.py` — Main deployment orchestration
+- `deployment_config.py` — Configuration constants
 
 Follow the [GitHub workflow](https://github.com/dc-floriangaerner/dc-fabric-cicd/blob/main/.github/copilot-instructions.md#making-changes-to-this-repository) for making changes.
 

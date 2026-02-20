@@ -156,8 +156,7 @@ class TestDeploymentSummary:
 class TestDeploymentIntegration:
     """Integration tests for deployment workflow (requires mocked Fabric API)."""
 
-    @patch("scripts.deploy_to_fabric.FabricClient")
     @patch("scripts.deploy_to_fabric.ClientSecretCredential")
-    def test_deployment_workflow_mock(self, mock_cred, mock_client, temp_workspace_dir, mock_env_vars):
+    def test_deployment_workflow_mock(self, mock_cred, temp_workspace_dir, mock_env_vars):
         """Test full deployment workflow with mocked dependencies."""
         pytest.xfail("Integration deployment workflow test not yet implemented")

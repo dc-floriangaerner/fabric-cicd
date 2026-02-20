@@ -15,7 +15,6 @@ from typing import Any
 import yaml
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from fabric_cicd import append_feature_flag, change_log_level, deploy_with_config
-from microsoft_fabric_api import FabricClient
 
 # Import local modules using relative imports
 from .deployment_config import (
@@ -24,9 +23,6 @@ from .deployment_config import (
     ENV_AZURE_CLIENT_ID,
     ENV_AZURE_CLIENT_SECRET,
     ENV_AZURE_TENANT_ID,
-    ENV_DEPLOYMENT_SP_OBJECT_ID,
-    ENV_FABRIC_ADMIN_GROUP_ID,
-    ENV_FABRIC_CAPACITY_ID,
     ENV_GITHUB_ACTIONS,
     EXIT_FAILURE,
     EXIT_SUCCESS,
@@ -37,7 +33,6 @@ from .deployment_config import (
     WIKI_SETUP_GUIDE_URL,
     WIKI_TROUBLESHOOTING_URL,
 )
-from .fabric_workspace_manager import ensure_workspace_exists
 from .logger import get_logger
 
 # Initialize logger
@@ -160,26 +155,17 @@ def deploy_workspace(
     workspaces_dir: str,
     environment: str,
     token_credential: ClientSecretCredential | DefaultAzureCredential,
-    capacity_id: str | None = None,
-    service_principal_object_id: str | None = None,
-    entra_admin_group_id: str | None = None,
 ) -> DeploymentResult:
     """Deploy a single workspace using config.yml.
+
+    Workspaces are pre-provisioned by Terraform. This function only deploys items
+    into an already-existing workspace.
 
     Args:
         workspace_folder: Name of the workspace folder
         workspaces_dir: Root directory containing workspace folders
         environment: Target environment (dev/test/prod)
         token_credential: Azure credential for authentication
-        capacity_id: Fabric capacity ID used when creating the workspace.
-            Required if the workspace does not already exist and must be auto-created;
-            optional if the target workspace already exists.
-        service_principal_object_id: Azure AD Object ID of the service principal used for
-            role assignment when a new workspace is created. Required for auto-creation
-            scenarios where the service principal should be granted access; optional if
-            the workspace already exists and no new role assignment is needed.
-        entra_admin_group_id: Optional Azure AD Object ID of Entra ID group to grant
-            admin permissions. If provided, the group will be assigned as a workspace admin.
 
     Returns:
         DeploymentResult object with success status and error message if applicable.
@@ -198,19 +184,6 @@ def deploy_workspace(
         logger.info(f"-> Target workspace: {workspace_name}")
         logger.info(f"-> Config file: {config_file_path}")
         logger.info(f"-> Environment: {environment}")
-
-        # Create Fabric API client
-        fabric_client = create_fabric_client(token_credential)
-
-        # Ensure workspace exists (create if necessary)
-        workspace_id = ensure_workspace_exists(
-            workspace_name=workspace_name,
-            capacity_id=capacity_id,
-            service_principal_object_id=service_principal_object_id,
-            entra_admin_group_id=entra_admin_group_id,
-            fabric_client=fabric_client,
-        )
-        logger.info(f"-> Workspace ensured with ID: {workspace_id}")
 
         # Deploy using config.yml
         logger.info("-> Deploying items using config-based deployment...")
@@ -284,18 +257,6 @@ def create_azure_credential() -> ClientSecretCredential | DefaultAzureCredential
     # Local development fallback — no CI env, no creds set
     logger.info("-> Using DefaultAzureCredential for authentication (local development)")
     return DefaultAzureCredential()
-
-
-def create_fabric_client(token_credential: ClientSecretCredential | DefaultAzureCredential) -> FabricClient:
-    """Create and return Microsoft Fabric API client.
-
-    Args:
-        token_credential: Azure credential for authentication
-
-    Returns:
-        Initialized FabricClient instance
-    """
-    return FabricClient(token_credential=token_credential)
 
 
 def discover_workspace_folders(workspaces_directory: str) -> list[str]:
@@ -415,20 +376,17 @@ def deploy_all_workspaces(
     workspaces_directory: str,
     environment: str,
     token_credential: ClientSecretCredential | DefaultAzureCredential,
-    capacity_id: str | None,
-    service_principal_object_id: str | None,
-    entra_admin_group_id: str | None,
 ) -> list[DeploymentResult]:
     """Deploy all specified workspaces and return results.
+
+    Workspaces are pre-provisioned by Terraform. This function only deploys items
+    into already-existing workspaces.
 
     Args:
         workspace_folders: List of workspace folder names to deploy
         workspaces_directory: Root directory containing workspace folders
         environment: Target environment (dev/test/prod)
         token_credential: Azure credential for authentication
-        capacity_id: Optional Fabric workspace capacity ID for creation
-        service_principal_object_id: Optional service principal object ID for role assignment
-        entra_admin_group_id: Optional Entra ID group ID for admin permissions
 
     Returns:
         List of DeploymentResult objects, one per workspace
@@ -444,9 +402,6 @@ def deploy_all_workspaces(
             workspaces_dir=workspaces_directory,
             environment=environment,
             token_credential=token_credential,
-            capacity_id=capacity_id,
-            service_principal_object_id=service_principal_object_id,
-            entra_admin_group_id=entra_admin_group_id,
         )
 
         results.append(result)
@@ -502,11 +457,6 @@ def main():
         # Authenticate
         token_credential = create_azure_credential()
 
-        # Get workspace creation configuration from environment
-        capacity_id = os.getenv(ENV_FABRIC_CAPACITY_ID)
-        service_principal_object_id = os.getenv(ENV_DEPLOYMENT_SP_OBJECT_ID)
-        entra_admin_group_id = os.getenv(ENV_FABRIC_ADMIN_GROUP_ID)
-
         # Auto-discover all workspace folders
         workspace_folders = discover_workspace_folders(workspaces_directory)
 
@@ -519,9 +469,6 @@ def main():
             workspaces_directory=workspaces_directory,
             environment=environment,
             token_credential=token_credential,
-            capacity_id=capacity_id,
-            service_principal_object_id=service_principal_object_id,
-            entra_admin_group_id=entra_admin_group_id,
         )
 
         # Calculate deployment duration

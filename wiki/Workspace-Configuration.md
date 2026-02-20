@@ -10,6 +10,8 @@ Each workspace folder in the repository contains two critical configuration file
 - **config.yml** - Workspace names and deployment settings
 - **parameter.yml** - ID transformation rules for environment-specific values
 
+> **Prerequisite**: Workspaces must exist in Fabric before the deployment pipeline can deploy items into them. Workspace lifecycle (create / configure) is managed by Terraform (`terraform.yml`). The workspace names in `config.yml` must match the names Terraform creates — that is the shared contract between the two pipelines.
+
 ## config.yml Structure
 
 The `config.yml` file defines workspace names for each environment and controls deployment behavior.
@@ -126,11 +128,14 @@ az rest --method get \
 
 ## Adding a New Workspace
 
+> **Provision first**: Before running `fabric-deploy.yml` for a new workspace, add the corresponding Terraform resources in `terraform/main.tf` and `terraform/environments/*.tfvars`, then run `terraform.yml` to create the workspace.
+
 1. Create workspace folder: `workspaces/<Workspace Name>/`
-2. Create `config.yml` with workspace names
+2. Create `config.yml` with workspace names (must match the Terraform `workspace_name_*` values exactly)
 3. Create `parameter.yml` with transformation rules
 4. Add workspace items (Lakehouses, Notebooks, etc.)
-5. Commit and push to trigger deployment
+5. Add Terraform resources and run `terraform.yml` for each environment
+6. Commit and push to trigger item deployment
 
 ## Best Practices
 

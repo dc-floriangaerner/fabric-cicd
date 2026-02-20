@@ -3,5 +3,4 @@
 
 fabric-cicd==0.2.0
 azure-identity==1.25.2
-microsoft-fabric-api==0.1.0b2
 pyyaml==6.0.3

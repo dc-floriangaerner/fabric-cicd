@@ -3,7 +3,7 @@
 
 """Extended tests for deploy_to_fabric.py - covering missing functions."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -12,7 +12,6 @@ from scripts.deploy_to_fabric import (
     DeploymentSummary,
     build_deployment_results_json,
     create_azure_credential,
-    create_fabric_client,
     deploy_all_workspaces,
     get_workspace_folders,
     print_deployment_summary,
@@ -154,16 +153,6 @@ class TestCreateAzureCredential:
             create_azure_credential()
 
 
-class TestCreateFabricClient:
-    """Test suite for create_fabric_client function."""
-
-    def test_create_fabric_client(self, mock_azure_credential):
-        """Test creating Fabric API client."""
-        client = create_fabric_client(mock_azure_credential)
-
-        assert client is not None
-
-
 class TestBuildDeploymentResultsJson:
     """Test suite for build_deployment_results_json function."""
 
@@ -270,9 +259,6 @@ class TestDeployAllWorkspaces:
             workspaces_directory="/path/to/workspaces",
             environment="dev",
             token_credential=mock_azure_credential,
-            capacity_id="capacity-123",
-            service_principal_object_id="sp-456",
-            entra_admin_group_id=None,
         )
 
         assert len(results) == 2
@@ -293,9 +279,6 @@ class TestDeployAllWorkspaces:
             workspaces_directory="/path/to/workspaces",
             environment="test",
             token_credential=mock_azure_credential,
-            capacity_id=None,
-            service_principal_object_id=None,
-            entra_admin_group_id=None,
         )
 
         assert len(results) == 2
@@ -310,9 +293,6 @@ class TestDeployAllWorkspaces:
             workspaces_directory="/path/to/workspaces",
             environment="prod",
             token_credential=mock_azure_credential,
-            capacity_id="capacity-123",
-            service_principal_object_id="sp-456",
-            entra_admin_group_id="group-789",
         )
 
         assert len(results) == 0
@@ -323,39 +303,23 @@ class TestDeployWorkspaceIntegration:
     """Integration tests for deploy_workspace function."""
 
     @patch("scripts.deploy_to_fabric.deploy_with_config")
-    @patch("scripts.deploy_to_fabric.ensure_workspace_exists")
-    @patch("scripts.deploy_to_fabric.create_fabric_client")
-    def test_deploy_workspace_success_integration(
-        self, mock_client, mock_ensure, mock_deploy, temp_workspace_dir, mock_azure_credential
-    ):
+    def test_deploy_workspace_success_integration(self, mock_deploy, temp_workspace_dir, mock_azure_credential):
         """Test complete deploy_workspace workflow."""
         from scripts.deploy_to_fabric import deploy_workspace
-
-        mock_ensure.return_value = "workspace-id-123"
-        mock_client.return_value = MagicMock()
 
         result = deploy_workspace(
             workspace_folder="Test Workspace",
             workspaces_dir=str(temp_workspace_dir),
             environment="dev",
             token_credential=mock_azure_credential,
-            capacity_id="capacity-123",
-            service_principal_object_id="sp-456",
-            entra_admin_group_id=None,
         )
 
         assert result.success is True
         assert result.workspace_folder == "Test Workspace"
         assert result.workspace_name == "[D] Test Workspace"
-        mock_ensure.assert_called_once()
         mock_deploy.assert_called_once()
 
-    @patch("scripts.deploy_to_fabric.deploy_with_config")
-    @patch("scripts.deploy_to_fabric.ensure_workspace_exists")
-    @patch("scripts.deploy_to_fabric.create_fabric_client")
-    def test_deploy_workspace_config_load_failure(
-        self, mock_client, mock_ensure, mock_deploy, tmp_path, mock_azure_credential
-    ):
+    def test_deploy_workspace_config_load_failure(self, tmp_path, mock_azure_credential):
         """Test deploy_workspace handles config load failure."""
         from scripts.deploy_to_fabric import deploy_workspace
 
@@ -370,16 +334,10 @@ class TestDeployWorkspaceIntegration:
         assert "config.yml not found" in result.error_message.lower()
 
     @patch("scripts.deploy_to_fabric.deploy_with_config")
-    @patch("scripts.deploy_to_fabric.ensure_workspace_exists")
-    @patch("scripts.deploy_to_fabric.create_fabric_client")
-    def test_deploy_workspace_deployment_failure(
-        self, mock_client, mock_ensure, mock_deploy, temp_workspace_dir, mock_azure_credential
-    ):
+    def test_deploy_workspace_deployment_failure(self, mock_deploy, temp_workspace_dir, mock_azure_credential):
         """Test deploy_workspace handles deployment API failure."""
         from scripts.deploy_to_fabric import deploy_workspace
 
-        mock_ensure.return_value = "workspace-id-123"
-        mock_client.return_value = MagicMock()
         mock_deploy.side_effect = Exception("API connection error")
 
         result = deploy_workspace(

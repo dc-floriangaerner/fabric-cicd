@@ -11,6 +11,7 @@ A reference architecture for deploying Microsoft Fabric workspaces using CI/CD p
 - **Python 3.11+** - Deployment scripts
 - **Microsoft Fabric** - Data platform and workspace items
 - **GitHub Actions** - CI/CD automation
+- **Terraform** - Workspace infrastructure provisioning
 - **fabric-cicd library** - Deployment orchestration
 - **Azure Identity** - Service Principal authentication
 
@@ -39,6 +40,7 @@ cat scripts/deployment_config.py
 │   ├── instructions/              # Path-specific Copilot instructions
 │   └── workflows/                 # GitHub Actions workflows
 ├── scripts/                        # Python deployment scripts
+├── terraform/                      # Terraform infra (workspaces, role assignments)
 ├── workspaces/                     # Fabric workspace definitions
 │   ├── Fabric Blueprint/          # Example workspace
 │   │   ├── config.yml            # Workspace names per environment
@@ -55,11 +57,10 @@ cat scripts/deployment_config.py
 ### Making Changes
 
 **ALWAYS follow this workflow:**
-1. Create a GitHub issue documenting the change
-2. Create a feature branch: `feature/<issue-number>-description`
-3. Make your changes
-4. Create a Pull Request to `main`
-5. After approval, merge to `main` (triggers auto-deployment to Dev)
+1. Create a feature branch: `feature/<description>`
+2. Make your changes
+3. Create a Pull Request to `main`
+4. After approval, merge to `main` (triggers auto-deployment to Dev)
 
 ### Getting Help
 
@@ -78,7 +79,8 @@ cat scripts/deployment_config.py
 
 This is a **reference architecture** for Microsoft Fabric CI/CD supporting **multiple workspaces** from a single repository. Uses a **medallion architecture** (Bronze → Silver → Gold) for data engineering. The codebase defines Fabric workspace items as code, enabling Git-based version control, collaboration, and automated deployment workflows.
 
-**Key Purpose**: Serve as a company-wide template for Fabric projects following Microsoft best practices for lifecycle management with multi-workspace support.
+### Key Purpose
+Serve as a company-wide template for Fabric projects following Microsoft best practices for lifecycle management with multi-workspace support. **Infrastructure** (workspace provisioning) is managed by Terraform; **item deployment** is managed by the `fabric-cicd` Python library and GitHub Actions.
 
 ## Multi-Workspace Architecture
 
@@ -128,27 +130,12 @@ This project follows **Fabric Git Integration** patterns where:
 
 This architecture uses **Git-based deployments with Build environments** for configuration transformation between stages.
 
-**Why Git-based with Build Environments**
-- Single source of truth in `main` branch (trunk-based workflow)
-- Build environments allow modification of workspace-specific attributes (connectionId, lakehouseId, parameters)
-- Custom scripts can adjust configurations for each stage (Dev/Test/Prod)
-- Uses `fabric-cicd` library for deploying items programmatically
+**Two independent pipelines:**
 
-**Deployment Flow:**
-
-1. **PR merged to main** → Triggers build pipeline
-2. **Build Pipeline** (per stage: Dev → Test → Prod):
-   - Spin up Build environment
-   - Run unit tests
-   - Execute configuration scripts to modify item definitions for target stage
-   - Adjust connections, data sources, parameters
-3. **Release Pipeline**:
-   - Use `fabric-cicd` library to deploy items to workspace
-   - Run post-deployment ingestion/configuration tasks
-4. **Approval Gates**: Release managers approve progression between stages
-
-**Deployment Tool:**
-- `fabric-cicd` library: Handles deployment of modified item content to workspaces
+| Workflow | File | Purpose | Trigger |
+|---|---|---|---|
+| **Terraform** | `terraform.yml` | Provision Fabric workspaces | Push to `main` touching `terraform/**`, or manual |
+| **Fabric Deploy** | `fabric-deploy.yml` | Deploy items into existing workspaces | Push to `main` touching `workspaces/**`, or manual |
 
 ### Best Practices for This Architecture
 
@@ -323,38 +310,26 @@ Each Fabric item follows this pattern:
 
 ### Making Changes to This Repository
 
-**REQUIRED GitHub Workflow for All Changes:**
-
 Whenever making changes to this repository (code, documentation, Fabric items, configuration), follow this mandatory process:
 
-1. **Create a GitHub Issue**:
-   - Document what you're changing and why
-   - Include acceptance criteria
-   - Apply appropriate labels (e.g., `enhancement`, `bug`, `documentation`)
-   - Example title: "Add lakehouse_platinum to Gold layer"
+1. **Create a Feature Branch from main**:
+   - Use descriptive branch names: `feature/<brief-description>`
+   - Example: `feature/add-platinum-lakehouse`
+   - Branch from latest `main`: `git checkout main && git pull && git checkout -b feature/add-platinum-lakehouse`
 
-2. **Create a Feature Branch from main**:
-   - Use descriptive branch names: `feature/<issue-number>-brief-description`
-   - Example: `feature/42-add-platinum-lakehouse`
-   - Branch from latest `main`: `git checkout main && git pull && git checkout -b feature/42-add-platinum-lakehouse`
-
-3. **Work on the Issue**:
+2. **Work on the Change**:
    - Make changes in your feature branch
-   - Commit frequently with clear messages referencing the issue: `git commit -m "Add platinum lakehouse structure #42"`
+   - Commit frequently with clear messages: `git commit -m "Add platinum lakehouse structure"`
    - Test changes locally when applicable
    - Keep commits focused and atomic
 
-4. **Create a Pull Request**:
-   - Push your feature branch to GitHub: `git push -u origin feature/42-add-platinum-lakehouse`
+3. **Create a Pull Request**:
+   - Push your feature branch to GitHub: `git push -u origin feature/add-platinum-lakehouse`
    - Create PR from your branch to `main`
-   - Reference the issue in the PR description: "Closes #42"
    - Add reviewers (at least one required)
-   - Ensure PR description includes:
-     - What changed and why
-     - Testing performed
-     - Any deployment considerations
+   - Ensure PR description includes what changed, why, and any deployment considerations
 
-5. **PR Review and Merge**:
+4. **PR Review and Merge**:
    - Address review feedback
    - Ensure CI/CD checks pass
    - Once approved, merge to `main` (squash commits for clean history)
@@ -363,6 +338,7 @@ Whenever making changes to this repository (code, documentation, Fabric items, c
 **This workflow applies to:**
 - Adding/modifying Fabric items (lakehouses, notebooks, pipelines)
 - Updating deployment scripts or workflows
+- Updating Terraform infrastructure files
 - Documentation changes
 - Configuration updates (`parameter.yml`, `alm.settings.json`)
 - Any changes to scripts, workflows, or repository structure
@@ -430,22 +406,12 @@ When creating new items, follow the exact folder/file naming patterns observed i
 
 ## Common Tasks
 
-**⚠️ GitHub Workflow Required**: Before performing any of the tasks below, always follow the GitHub workflow:
-1. Create an issue documenting the change
-2. Create a feature branch from `main`
-3. Make your changes in the feature branch
-4. Create a PR and get it reviewed
-5. Merge to `main` after approval
-
-See [Making Changes to This Repository](#making-changes-to-this-repository) for detailed instructions.
-
 ### Adding a New Lakehouse
 1. Create `<name>.Lakehouse/` directory in appropriate layer
 2. Add `lakehouse.metadata.json` with `{"defaultSchema":"dbo"}`
 3. Add `alm.settings.json` (copy from existing lakehouse)
 4. Add empty `shortcuts.metadata.json` (`[]`)
 5. **Important**: Lakehouse IDs must be transformed by build scripts for each environment
-6. **GitHub**: Create issue → feature branch → PR → merge to main
 
 ### Adding a New Notebook
 1. Create `<name>.Notebook/` directory
@@ -453,14 +419,21 @@ See [Making Changes to This Repository](#making-changes-to-this-repository) for 
 3. Use `synapse_pyspark` kernel
 4. Include cell boundaries with `# CELL` comments
 5. **Important**: Parameterize any lakehouse references or connections
-6. **GitHub**: Create issue → feature branch → PR → merge to main
 
 ### Adding a Copy Job
 1. Create `<name>.CopyJob/` directory
 2. Add `copyjob-content.json` with `properties.jobMode`
 3. Define `activities` array for pipeline steps
 4. **Important**: Connection IDs and data source paths must be parameterized for build transformation
-5. **GitHub**: Create issue → feature branch → PR → merge to main
+
+### Adding a New Workspace
+1. Add Terraform resources in `terraform/main.tf` (workspace + role assignment)
+2. Add variable values in each `terraform/environments/*.tfvars`
+3. Create workspace folder under `workspaces/<Workspace Name>/`
+4. Create `config.yml` with workspace names matching Terraform values
+5. Create `parameter.yml` with ID transformation rules
+6. Run (or trigger) `terraform.yml` to provision the workspace
+7. Add workspace items and push to trigger item deployment
 
 ### Build Pipeline Configuration (Future Implementation)
 

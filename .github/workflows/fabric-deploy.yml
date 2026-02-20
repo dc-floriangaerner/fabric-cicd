@@ -56,17 +56,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "push" ]; then
             echo "environment=dev" >> $GITHUB_OUTPUT
-            echo "capacity_id=${{ secrets.FABRIC_CAPACITY_ID_DEV }}" >> $GITHUB_OUTPUT
             echo "trigger_type=Automatic" >> $GITHUB_OUTPUT
           else
             echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
-            if [ "${{ inputs.environment }}" == "dev" ]; then
-              echo "capacity_id=${{ secrets.FABRIC_CAPACITY_ID_DEV }}" >> $GITHUB_OUTPUT
-            elif [ "${{ inputs.environment }}" == "test" ]; then
-              echo "capacity_id=${{ secrets.FABRIC_CAPACITY_ID_TEST }}" >> $GITHUB_OUTPUT
-            else
-              echo "capacity_id=${{ secrets.FABRIC_CAPACITY_ID_PROD }}" >> $GITHUB_OUTPUT
-            fi
             echo "trigger_type=Manual" >> $GITHUB_OUTPUT
           fi
 
@@ -104,9 +96,6 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          FABRIC_CAPACITY_ID: ${{ steps.set-env.outputs.capacity_id }}
-          DEPLOYMENT_SP_OBJECT_ID: ${{ secrets.DEPLOYMENT_SP_OBJECT_ID }}
-          FABRIC_ADMIN_GROUP_ID: ${{ secrets.FABRIC_ADMIN_GROUP_ID }}
 
       - name: Deployment Summary
         if: always()

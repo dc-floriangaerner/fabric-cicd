@@ -67,10 +67,9 @@ except HttpResponseError as e:
 
 ### Authentication
 
-Use the `microsoft_fabric_api` SDK for all Fabric operations:
+Use `azure-identity` for authentication. The deployment credentials are read from environment variables by `create_azure_credential()` in `deploy_to_fabric.py`:
 
 ```python
-from microsoft_fabric_api import FabricClient
 from azure.identity import ClientSecretCredential
 
 credential = ClientSecretCredential(
@@ -78,8 +77,6 @@ credential = ClientSecretCredential(
     client_id=client_id,
     client_secret=client_secret
 )
-
-client = FabricClient(token_credential=credential)
 ```
 
 ### Common Patterns
@@ -87,10 +84,6 @@ client = FabricClient(token_credential=credential)
 **Configuration Management:**
 - Constants defined in `scripts/deployment_config.py`
 - Import as: `from .deployment_config import VALID_ENVIRONMENTS`
-
-**Workspace Management:**
-- Use `FabricWorkspaceManager` class from `fabric_workspace_manager.py`
-- Handles workspace creation, deployment, and rollback
 
 **Return Values:**
 - Return `bool` for success/failure operations

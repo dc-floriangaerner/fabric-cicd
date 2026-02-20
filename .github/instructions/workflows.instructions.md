@@ -9,9 +9,10 @@ description: "GitHub Actions workflow configurations"
 
 ### Workflow Structure
 
-This repository uses a single workflow file for multi-environment deployment:
+This repository uses two workflow files:
 
-- `fabric-deploy.yml` - Main deployment workflow for Dev/Test/Prod
+- `terraform.yml` — Provisions Fabric workspaces (infra lifecycle)
+- `fabric-deploy.yml` — Deploys items into pre-existing workspaces (item deployment)
 
 ### Workflow Triggers
 
@@ -47,17 +48,11 @@ Use Service Principal authentication with GitHub Secrets:
 
 ### Required GitHub Secrets
 
-**Always needed:**
+**Always needed (both workflows):**
 - `AZURE_CLIENT_ID` - Service Principal Client ID
 - `AZURE_CLIENT_SECRET` - Service Principal Secret
 - `AZURE_TENANT_ID` - Azure AD Tenant ID
-
-**For auto-creation (optional):**
-- `FABRIC_CAPACITY_ID_DEV` - Dev capacity GUID
-- `FABRIC_CAPACITY_ID_TEST` - Test capacity GUID
-- `FABRIC_CAPACITY_ID_PROD` - Prod capacity GUID
-- `DEPLOYMENT_SP_OBJECT_ID` - SP Object ID for role assignment
-- `FABRIC_ADMIN_GROUP_ID` - Entra ID group for admin access
+- `ARM_SUBSCRIPTION_ID` - Azure subscription ID (for Terraform state storage)
 
 ### Environment Configuration
 

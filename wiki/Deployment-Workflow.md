@@ -6,41 +6,68 @@ Understand the CI/CD pipeline workflow for deploying Microsoft Fabric workspaces
 
 ## Overview
 
-This repository uses a trunk-based development workflow with automated deployments to Dev and manual promotions to Test and Production.
+This repository uses a trunk-based development workflow with two independent pipelines:
+
+| Workflow | File | Purpose | Trigger |
+|---|---|---|---|
+| **Terraform** | `terraform.yml` | Provision Fabric workspaces | Push to `main` touching `terraform/**`, or manual |
+| **Fabric Deploy** | `fabric-deploy.yml` | Deploy items into existing workspaces | Push to `main` touching `workspaces/**`, or manual |
+
+Terraform owns the workspace lifecycle. The deployment pipeline only deploys items — it requires workspaces to already exist.
 
 ## Deployment Pipeline Flow
 
 ```mermaid
 graph LR
-    A[PR Merged to Main] --> B[Auto Deploy to Dev]
-    B --> C{Verify Dev}
-    C -->|Success| D[Manual: Deploy to Test]
-    D --> E{Verify Test}
-    E -->|Success| F[Manual: Deploy to Prod]
+    A[Terraform: Provision Workspaces] --> B[PR Merged to Main]
+    B --> C[fabric-deploy: Auto Deploy to Dev]
+    C --> D{Verify Dev}
+    D -->|Success| E[Manual: Deploy to Test]
+    E --> F{Verify Test}
+    F -->|Success| G[Manual: Deploy to Prod]
 ```
+
+## Terraform Workflow (terraform.yml)
+
+Manages the Fabric workspace lifecycle. Runs infrequently — only when workspace configuration changes.
+
+**Triggers:**
+- Push to `main` touching `terraform/**` → applies to Dev automatically
+- Manual `workflow_dispatch` → applies to chosen environment (dev / test / prod)
+
+**Steps:**
+1. `terraform init` — initialise provider and remote state
+2. `terraform validate` — check HCL syntax
+3. `terraform plan` — show planned changes
+4. `terraform apply` — create/update workspaces and role assignments
+
+Test and Prod jobs are protected by GitHub Environment rules requiring manual approval.
+
+## Fabric Deploy Workflow (fabric-deploy.yml)
+
+Deploys items into pre-existing workspaces. Runs on every workspace change.
+
+**Triggers:**
+- Push to `main` touching `workspaces/**` → deploys to Dev automatically
+- Manual `workflow_dispatch` → deploys to chosen environment
+
+**Steps:**
+1. Checkout repository
+2. Set up Python and install dependencies
+3. Authenticate with Service Principal (`ClientSecretCredential`)
+4. Scan for unmapped IDs (`check_unmapped_ids.py`)
+5. Deploy all workspaces using `deploy_to_fabric.py` + `fabric-cicd`
+6. Upload deployment results artifact
 
 ## Deployment Environments
 
-| Environment | Trigger | Use Case | Approval Required |
-|-------------|---------|----------|-------------------|
-| **Dev** | Automatic on merge to `main` | Rapid iteration and testing | No |
-| **Test** | Manual workflow dispatch | Pre-production validation | Optional |
-| **Production** | Manual workflow dispatch | Live environment | Optional |
+| Environment | Terraform Trigger | Items Trigger | Approval Required |
+|---|---|---|---|
+| **Dev** | Auto on `terraform/**` push | Auto on `workspaces/**` push | No |
+| **Test** | Manual dispatch | Manual dispatch | Optional |
+| **Production** | Manual dispatch | Manual dispatch | Optional |
 
-## Deployment Process
-
-For each workspace in the deployment:
-
-1. **Auto-Discover Workspaces** - Automatically discovers all workspace folders with `config.yml`
-2. **Authenticate** - Login using Service Principal (ClientSecretCredential)
-3. **Capture State** - Store current workspace state for potential rollback
-4. **Transform IDs** - Replace environment-specific IDs based on workspace `parameter.yml`
-5. **Deploy Items** - Publish items using `fabric-cicd` library
-6. **Clean Up Orphans** - Remove items not in repository (optional)
-7. **Rollback on Failure** - If any workspace fails, rollback all previously deployed workspaces
-8. **Report Status** - Display deployment summary in GitHub Actions
-
-### Authentication Flow
+## Authentication Flow
 
 ```mermaid
 sequenceDiagram
@@ -57,7 +84,18 @@ sequenceDiagram
     Fabric-->>GH: Deployment successful
 ```
 
-### Workspace Structure
+## Deployment Process
+
+For each workspace in the `fabric-deploy.yml` run:
+
+1. **Auto-Discover Workspaces** — find all workspace folders with `config.yml`
+2. **Authenticate** — login using Service Principal (`ClientSecretCredential`)
+3. **Transform IDs** — replace environment-specific IDs based on workspace `parameter.yml`
+4. **Deploy Items** — publish items using `fabric-cicd` library
+5. **Clean Up Orphans** — remove items not present in repository (optional)
+6. **Report Status** — display deployment summary and upload artifact
+
+## Workspace Structure
 
 ```mermaid
 graph TD
@@ -182,7 +220,12 @@ workspaces/
 └── Fabric Blueprint/      → Deploys to [D/T/P] Fabric Blueprint
 ```
 
-Additional workspaces can be added by duplicating the `Fabric Blueprint` folder structure.
+Additional workspaces can be added by:
+1. Duplicating the `Fabric Blueprint` folder structure
+2. Adding corresponding Terraform resources in `terraform/main.tf`
+3. Setting variable values in `terraform/environments/*.tfvars`
+
+The workspace name in `config.yml` is the shared contract between Terraform (creates the workspace by that name) and `fabric-cicd` (deploys items into it).
 
 > **Note**: Atomic rollback is a planned feature. Currently, if a workspace deployment fails, the pipeline stops and reports the error, but previously deployed workspaces in that run are not automatically rolled back.
 

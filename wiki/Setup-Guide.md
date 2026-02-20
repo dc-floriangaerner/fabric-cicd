@@ -6,7 +6,8 @@ This guide walks you through setting up the CI/CD pipeline for multi-workspace F
 
 **📋 What You'll Accomplish**:
 - Create Azure Service Principal for authentication
-- Provision Fabric workspaces (manually or automatically)
+- Bootstrap Terraform state storage (one-time)
+- Provision Fabric workspaces with Terraform
 - Configure GitHub repository secrets
 - Test automated deployment to Dev environment
 
@@ -15,7 +16,7 @@ This guide walks you through setting up the CI/CD pipeline for multi-workspace F
 - [ ] Microsoft Fabric workspace access (Admin or Contributor)
 - [ ] Microsoft Entra ID tenant access to create Service Principal
 - [ ] GitHub repository with Actions enabled
-- [ ] Dev, Test, and Prod Fabric workspaces — either **manually pre-created** or **auto-created by the Service Principal** (see Step 2)
+- [ ] Azure subscription access to create a storage account (for Terraform state)
 
 ## Step 1: Create Azure Service Principal
 
@@ -53,73 +54,86 @@ OBJECT_ID=$(az ad sp show --id $CLIENT_ID --query id -o tsv)
 echo "DEPLOYMENT_SP_OBJECT_ID: $OBJECT_ID"
 ```
 
-## Step 2: Provision Fabric Workspaces
+## Step 2: Bootstrap Terraform State Storage (One-Time)
 
-**⏱️ Time**: ~10 minutes (manual) / ~2 minutes (auto-creation)
+**⏱️ Time**: ~5 minutes
 
-> **Choose one approach** before continuing. You do not need to do both.
+Terraform tracks what it has created using a state file. The file is stored in Azure Blob Storage so all CI/CD runs share the same state.
 
----
+Create the storage account once — Terraform manages everything after that.
 
-### Option A: Manually Pre-Create Workspaces (Traditional Approach)
+```bash
+# Set variables (storage account name must be globally unique, lowercase, 3–24 chars)
+RESOURCE_GROUP="rg-fabric-cicd-tfstate"
+STORAGE_ACCOUNT="stsfabriccicdtfstate"
+CONTAINER="tfstate"
+LOCATION="westeurope"
 
-Use this option if you want full control over workspace creation, or if your Fabric tenant does not allow Service Principals to create workspaces.
+# Create resource group and storage
+az group create --name $RESOURCE_GROUP --location $LOCATION
+az storage account create \
+  --name $STORAGE_ACCOUNT \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --min-tls-version TLS1_2
+az storage container create \
+  --name $CONTAINER \
+  --account-name $STORAGE_ACCOUNT \
+  --auth-mode login
+```
 
-For **each workspace folder** in **each environment** (Dev, Test, Prod):
+Then grant the Service Principal access to write state:
 
-1. Open [Fabric portal](https://app.fabric.microsoft.com) and create the workspace
-2. Name it with the correct environment prefix: `[D] <folder-name>`, `[T] <folder-name>`, `[P] <folder-name>`
-   - Example for "Fabric Blueprint": `[D] Fabric Blueprint`, `[T] Fabric Blueprint`, `[P] Fabric Blueprint`
-3. Click **Workspace settings** → **Manage access**
-4. Click **Add people or groups**
-5. Search for your Service Principal name (`fabric-cicd-deployment`)
-6. Assign role: **Contributor** (minimum) or **Admin**
-7. Click **Add**
+```bash
+SP_OBJECT_ID=$(az ad sp show --id $AZURE_CLIENT_ID --query id -o tsv)
+az role assignment create \
+  --assignee $SP_OBJECT_ID \
+  --role "Storage Blob Data Contributor" \
+  --scope "/subscriptions/<subscription-id>/resourceGroups/$RESOURCE_GROUP/storageAccounts/$STORAGE_ACCOUNT"
+```
 
-Repeat for every workspace folder defined under `workspaces/` in the repository.
+Update `terraform/main.tf` `backend "azurerm"` block if you used different names.
 
----
+## Step 3: Provision Fabric Workspaces with Terraform
 
-### Option B: Let the Service Principal Auto-Create Workspaces *(Optional)*
+**⏱️ Time**: ~10 minutes
 
-Use this option to skip manual workspace creation. The deployment pipeline will automatically create, configure, and grant access to all workspaces on first run.
+Workspace lifecycle is managed by Terraform — **not** by the Python deployment scripts.
 
-**This requires additional one-time configuration:**
+### 3a — Populate tfvars files
 
-#### B1 — Enable Fabric Tenant Setting
+Edit the three files under `terraform/environments/`:
 
-1. Open **Fabric Admin Portal**: https://app.fabric.microsoft.com/admin-portal
-2. Navigate to **Tenant Settings** → **Developer Settings**
-3. Find: **Service principals can create workspaces, connections, and deployment pipelines**
-4. Enable the setting and scope it to a security group that includes your Service Principal
-5. Click **Apply**
+| File | Purpose |
+|---|---|
+| `dev.tfvars` | Dev workspace name, capacity ID, Entra group OID |
+| `test.tfvars` | Test workspace name, capacity ID, Entra group OID |
+| `prod.tfvars` | Prod workspace name, capacity ID, Entra group OID |
 
-#### B2 — Assign Service Principal as Capacity Administrator
+| Variable | Where to find it |
+|---|---|
+| `workspace_name_*` | Already matches `workspaces/*/config.yml` — e.g. `[D] Fabric Blueprint` |
+| `capacity_id` | Fabric Admin Portal → Capacity Settings → GUID |
+| `entra_admin_group_object_id` | Azure AD → Groups → your admin group → Object ID |
 
-> **⚠️ Required in addition to the tenant setting above.** Without this, workspace creation will fail with a 403 error.
+### 3b — Run first apply
 
-1. Open **Azure Portal** → navigate to your **Fabric Capacity** resource
-2. Go to **Settings** → **Capacity administrators**
-3. Click **Add** and search for your Service Principal (`fabric-cicd-deployment`)
-4. Repeat for **each capacity** (Dev, Test, Prod if using separate capacities)
+```bash
+cd terraform
+terraform init
+terraform apply -var-file=environments/dev.tfvars
+```
 
-#### B3 — Add Auto-Creation Secrets to GitHub
+Repeat for `test.tfvars` and `prod.tfvars` as needed.
 
-Add the following secrets to your GitHub repository (see Step 3 for how to add secrets):
+After this, the workspace exists and the CI/CD pipeline can deploy items into it.
 
-| Secret Name | Description | Where to Find |
-|------------|-------------|---------------|
-| `FABRIC_CAPACITY_ID_DEV` | Dev Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
-| `FABRIC_CAPACITY_ID_TEST` | Test Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
-| `FABRIC_CAPACITY_ID_PROD` | Prod Fabric capacity GUID | Fabric Admin Portal → Capacity Settings |
-| `DEPLOYMENT_SP_OBJECT_ID` | Service Principal Object ID | Azure AD → Enterprise Applications |
-| `FABRIC_ADMIN_GROUP_ID` | Entra ID group for admin access | Azure AD → Groups → Object ID |
+> **Note**: The Service Principal that creates the workspace is automatically granted Admin access.
+> No separate role assignment is needed for the SP itself.
 
-Once configured, adding a new workspace is as simple as adding a new folder under `workspaces/` — the CI/CD pipeline handles everything else.
-
----
-
-## Step 3: Configure GitHub Secrets
+## Step 4: Configure GitHub Secrets
 
 **⏱️ Time**: ~5 minutes
 
@@ -127,19 +141,16 @@ Once configured, adding a new workspace is as simple as adding a new folder unde
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
 3. Click **New repository secret** for each:
 
-### Required Secrets (Always Needed)
+### Required Secrets
 
 | Secret Name | Description | Where to Find |
 |------------|-------------|---------------|
 | `AZURE_CLIENT_ID` | Service Principal Client ID | Azure AD App Registration → Overview |
 | `AZURE_CLIENT_SECRET` | Service Principal Secret | Azure AD App Registration → Certificates & secrets |
 | `AZURE_TENANT_ID` | Azure AD Tenant ID | Azure AD App Registration → Overview |
+| `ARM_SUBSCRIPTION_ID` | Azure subscription ID | Azure Portal → Subscriptions |
 
-### Optional Secrets (For Auto-Creation — Option B only)
-
-See [Step 2, Option B3](#b3--add-auto-creation-secrets-to-github) above for the full list and descriptions.
-
-## Step 4: Test the Pipeline
+## Step 5: Test the Pipeline
 
 **⏱️ Time**: ~15-20 minutes
 
@@ -171,8 +182,9 @@ git push origin feature/test-deployment
 You've successfully completed setup when:
 
 - [ ] Service Principal created with Client ID, Secret, and Tenant ID recorded
-- [ ] Workspaces are accessible to the Service Principal (either manually granted or auto-creation configured)
-- [ ] All required GitHub secrets configured (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`)
+- [ ] Terraform state storage created and SP granted access
+- [ ] Workspaces provisioned for Dev (and Test/Prod as needed) via Terraform
+- [ ] All required GitHub secrets configured
 - [ ] Test deployment to Dev succeeded without errors
 - [ ] Workspace items deployed correctly to Dev workspace
 - [ ] GitHub Actions workflow completed with green checkmark

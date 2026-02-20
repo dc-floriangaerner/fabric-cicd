@@ -35,21 +35,21 @@ Common issues and solutions for Fabric CI/CD deployments.
 **Error**: `Workspace '[D] Fabric Blueprint' not found`
 
 **Causes**:
-- Workspace doesn't exist in Fabric
-- Workspace name doesn't match `config.yml`
-- Service Principal doesn't have access to workspace
+- Workspace was not provisioned by Terraform yet
+- Workspace name in `config.yml` doesn’t match the Terraform-created name
+- Service Principal doesn’t have access to workspace
 - Workspace name is case-sensitive
 
 **Solutions**:
-1. Verify workspace exists in Fabric portal:
-   - Open https://app.fabric.microsoft.com
-   - Check workspace list for exact name
-2. Check `config.yml` workspace name:
+1. Confirm the workspace was provisioned by Terraform:
+   - Check the `terraform.yml` workflow run completed successfully for the target environment
+   - Run `terraform show` locally to inspect current state
+2. Check `config.yml` workspace name matches exactly:
    - Open `workspaces/<workspace-name>/config.yml`
-   - Verify workspace name matches exactly (including case and spaces)
-3. Grant Service Principal access:
-   - Workspace settings → Manage access → Add Service Principal
-   - Assign Admin or Contributor role
+   - Verify it matches the `workspace_name_*` value in `terraform/environments/<env>.tfvars`
+3. Re-run Terraform if the workspace is missing:
+   - Go to **Actions** → **Terraform — Fabric Infrastructure** → **Run workflow**
+   - Select the target environment
 
 ### No Workspaces Detected
 
@@ -156,11 +156,10 @@ Common issues and solutions for Fabric CI/CD deployments.
 
 ### Rollback Failed
 
-**Error**: Some workspaces rolled back, others failed
+**Error**: Some workspaces did not deploy correctly after a failure
 
 **Causes**:
 - Service Principal lacks permissions on some workspaces
-- Workspace state cannot be restored
 - Items locked or in use
 
 **Solutions**:
@@ -168,10 +167,38 @@ Common issues and solutions for Fabric CI/CD deployments.
    - Identify which workspace failed
    - Check specific error messages
 2. Verify Service Principal permissions:
-   - All workspaces need Admin or Contributor role
-3. Manual restoration may be required:
-   - Restore items from previous deployment
-   - Re-run deployment after fixing issues
+   - All workspaces need Admin or Contributor role (granted via Terraform)
+   - Re-run `terraform.yml` for the affected environment to restore expected role assignments
+
+## Terraform Issues
+
+### Terraform Plan Fails
+
+**Error**: `Error: could not configure provider...` or authentication errors in `terraform.yml`
+
+**Causes**:
+- GitHub secrets `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID` missing or incorrect
+- `ARM_SUBSCRIPTION_ID` secret missing (required for state storage access)
+
+**Solutions**:
+1. Verify all four required secrets are set in the GitHub repository:
+   - `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`, `ARM_SUBSCRIPTION_ID`
+2. Confirm Service Principal has `Storage Blob Data Contributor` on the Terraform state storage account
+
+### Terraform State Drift
+
+**Symptom**: Workspace exists in Fabric but Terraform wants to recreate it
+
+**Causes**:
+- Workspace was created outside Terraform (manually)
+- State file was deleted or corrupted
+
+**Solutions**:
+1. Import the existing workspace into Terraform state:
+   ```bash
+   terraform import fabric_workspace.fabric_blueprint <workspace-id>
+   ```
+2. Run `terraform plan` to confirm no destructive changes before applying
 
 ## Workflow Issues
 

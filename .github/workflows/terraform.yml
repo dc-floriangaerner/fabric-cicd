@@ -1,0 +1,96 @@
+name: Terraform — Fabric Infrastructure
+
+# ──────────────────────────────────────────────
+# Triggers
+# ──────────────────────────────────────────────
+# 1. Push to main touching terraform/** → plan + apply for dev
+# 2. Manual dispatch → plan for PRs / apply for push or dispatch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+
+# Prevent parallel runs that could corrupt Terraform state
+concurrency:
+  group: terraform-${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: '1.9.0'
+  TF_WORKING_DIR: './terraform'
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event_name == 'push' && 'Dev' || inputs.environment == 'dev' && 'Dev' || inputs.environment == 'test' && 'Test' || 'Production' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+      url: https://app.fabric.microsoft.com
+
+    env:
+      # microsoft/fabric provider reads these automatically
+      FABRIC_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      FABRIC_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      FABRIC_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      # azurerm backend reads these for state storage access
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve environment name
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          else
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan \
+            -var-file="environments/${{ steps.env.outputs.environment }}.tfvars" \
+            -out=tfplan \
+            -no-color
+        continue-on-error: true
+
+      - name: Terraform Apply
+        if: steps.plan.outcome == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform apply \
+            -auto-approve \
+            tfplan

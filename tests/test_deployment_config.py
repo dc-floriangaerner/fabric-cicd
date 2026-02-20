@@ -9,9 +9,6 @@ from scripts.deployment_config import (
     ENV_AZURE_CLIENT_ID,
     ENV_AZURE_CLIENT_SECRET,
     ENV_AZURE_TENANT_ID,
-    ENV_DEPLOYMENT_SP_OBJECT_ID,
-    ENV_FABRIC_ADMIN_GROUP_ID,
-    ENV_FABRIC_CAPACITY_ID,
     EXIT_FAILURE,
     EXIT_SUCCESS,
     RESULTS_FILENAME,
@@ -59,9 +56,6 @@ class TestDeploymentConfig:
             ENV_AZURE_CLIENT_ID,
             ENV_AZURE_TENANT_ID,
             ENV_AZURE_CLIENT_SECRET,
-            ENV_FABRIC_CAPACITY_ID,
-            ENV_DEPLOYMENT_SP_OBJECT_ID,
-            ENV_FABRIC_ADMIN_GROUP_ID,
             ENV_ACTIONS_RUNNER_DEBUG,
         ]
         for var in env_vars:
@@ -77,12 +71,3 @@ class TestDeploymentConfig:
         ]
         for var in azure_vars:
             assert var.startswith("AZURE_"), f"{var} should start with AZURE_"
-
-    def test_fabric_env_vars_start_with_fabric(self):
-        """Test that Fabric-related environment variables start with FABRIC_."""
-        fabric_vars = [
-            ENV_FABRIC_CAPACITY_ID,
-            ENV_FABRIC_ADMIN_GROUP_ID,
-        ]
-        for var in fabric_vars:
-            assert var.startswith("FABRIC_"), f"{var} should start with FABRIC_"

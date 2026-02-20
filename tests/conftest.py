@@ -5,18 +5,9 @@
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import pytest
-
-
-@pytest.fixture
-def mock_fabric_client():
-    """Create a mock FabricClient for testing."""
-    mock_client = MagicMock()
-    mock_client.core.workspaces.list_workspaces.return_value = []
-    mock_client.core.workspaces.create_workspace.return_value = Mock(id="test-workspace-id")
-    return mock_client
 
 
 @pytest.fixture
@@ -81,8 +72,6 @@ def mock_env_vars(monkeypatch):
         "AZURE_CLIENT_ID": "test-client-id",
         "AZURE_TENANT_ID": "test-tenant-id",
         "AZURE_CLIENT_SECRET": "test-client-secret",
-        "FABRIC_CAPACITY_ID": "test-capacity-id",
-        "DEPLOYMENT_SP_OBJECT_ID": "test-sp-object-id",
     }
     for key, value in env_vars.items():
         monkeypatch.setenv(key, value)

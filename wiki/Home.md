@@ -25,18 +25,19 @@ This wiki provides comprehensive documentation for implementing CI/CD pipelines 
 ### Key Features
 
 - **Multi-Workspace Support**: Deploy multiple Fabric workspaces from a single repository
-- **Automatic Workspace Creation**: Auto-create workspaces if they don't exist (optional)
+- **Terraform-Managed Infrastructure**: Workspace lifecycle (create/configure) managed by Terraform
 - **Medallion Architecture**: Bronze → Silver → Gold data layers
 - **Multi-stage Deployment**: Dev → Test → Production with approval gates
 - **Git-based Deployment**: Single source of truth in `main` branch
+- **Separation of Concerns**: Infra (Terraform) and item deployment (fabric-cicd) are independent pipelines
 
 ## Getting Started
 
 New to this project? Follow this recommended path:
 
-1. **[Setup Guide](Setup-Guide)** (30-45 min) - Configure Service Principal and GitHub secrets
+1. **[Setup Guide](Setup-Guide)** (30-45 min) - Create Service Principal, bootstrap Terraform, provision workspaces
 2. **[Workspace Configuration](Workspace-Configuration)** (15-20 min) - Set up workspace config files
-3. **[Deployment Workflow](Deployment-Workflow)** (10-15 min read) - Understand the deployment process
+3. **[Deployment Workflow](Deployment-Workflow)** (10-15 min read) - Understand the two-pipeline architecture
 4. **[Troubleshooting](Troubleshooting)** (Reference) - Solve issues as they arise
 5. **[FAQ](FAQ)** (Reference) - Find answers to common questions
 
