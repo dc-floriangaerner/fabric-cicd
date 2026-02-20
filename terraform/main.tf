@@ -10,7 +10,7 @@ terraform {
 
   backend "azurerm" {
     resource_group_name  = "rg-fabric-cicd-tfstate"
-    storage_account_name = "stfabriccicdtfstate"
+    storage_account_name = "stsfabriccicdtfstate"
     container_name       = "tfstate"
     key                  = "fabric-cicd.tfstate"
   }

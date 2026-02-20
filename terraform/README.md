@@ -27,7 +27,7 @@ terraform/
 
 ### 1 — Authenticate and select your Azure subscription
 
-```bash
+```powershell
 # Login interactively
 az login
 
@@ -43,29 +43,29 @@ az account show --output table
 
 ### 2 — Create Terraform state storage
 
-```bash
+```powershell
 # Set variables
-RESOURCE_GROUP="rg-fabric-cicd-tfstate"
-STORAGE_ACCOUNT="stfabriccicdtfstate"  # Must be globally unique, lowercase, 3–24 chars
-CONTAINER="tfstate"
-LOCATION="westeurope"
+$RESOURCE_GROUP = "rg-fabric-cicd-tfstate"
+$STORAGE_ACCOUNT = "stsfabriccicdtfstate"  # Must be globally unique, lowercase, 3-24 chars
+$CONTAINER = "tfstate"
+$LOCATION = "westeurope"
 
 # Create resource group
 az group create --name $RESOURCE_GROUP --location $LOCATION
 
 # Create storage account
-az storage account create \
-  --name $STORAGE_ACCOUNT \
-  --resource-group $RESOURCE_GROUP \
-  --location $LOCATION \
-  --sku Standard_LRS \
-  --kind StorageV2 \
+az storage account create `
+  --name $STORAGE_ACCOUNT `
+  --resource-group $RESOURCE_GROUP `
+  --location $LOCATION `
+  --sku Standard_LRS `
+  --kind StorageV2 `
   --min-tls-version TLS1_2
 
 # Create blob container
-az storage container create \
-  --name $CONTAINER \
-  --account-name $STORAGE_ACCOUNT \
+az storage container create `
+  --name $CONTAINER `
+  --account-name $STORAGE_ACCOUNT `
   --auth-mode login
 ```
 
@@ -73,13 +73,16 @@ Update `main.tf` `backend "azurerm"` block if you use different names.
 
 ### 3 — Grant the CI Service Principal access to the state storage
 
-```bash
-SP_OBJECT_ID="<service-principal-object-id>"
+```powershell
+$SP_OBJECT_ID = "<sp-object-id>"
+$RESOURCE_GROUP = "rg-fabric-cicd-tfstate"
+$STORAGE_ACCOUNT = "stsfabriccicdtfstate"
+$SUBSCRIPTION_ID = "<your-subscription-id>"
 
-az role assignment create \
-  --assignee $SP_OBJECT_ID \
-  --role "Storage Blob Data Contributor" \
-  --scope "/subscriptions/<subscription-id>/resourceGroups/$RESOURCE_GROUP/storageAccounts/$STORAGE_ACCOUNT"
+az role assignment create `
+  --assignee $SP_OBJECT_ID `
+  --role "Storage Blob Data Contributor" `
+  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT"
 ```
 
 ### 4 — Populate environments/*.tfvars
@@ -103,11 +106,11 @@ Edit `environments/dev.tfvars`, `test.tfvars`, and `prod.tfvars`:
 
 ### 6 — Run first apply for Dev
 
-```bash
+```powershell
 # Authenticate
-az login --service-principal \
-  --username $AZURE_CLIENT_ID \
-  --password $AZURE_CLIENT_SECRET \
+az login --service-principal `
+  --username $AZURE_CLIENT_ID `
+  --password $AZURE_CLIENT_SECRET `
   --tenant $AZURE_TENANT_ID
 
 # Initialize

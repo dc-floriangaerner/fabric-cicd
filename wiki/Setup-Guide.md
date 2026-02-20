@@ -65,7 +65,7 @@ Create the storage account once — Terraform manages everything after that.
 ```bash
 # Set variables (storage account name must be globally unique, lowercase, 3–24 chars)
 RESOURCE_GROUP="rg-fabric-cicd-tfstate"
-STORAGE_ACCOUNT="stfabriccicdtfstate"
+STORAGE_ACCOUNT="stsfabriccicdtfstate"
 CONTAINER="tfstate"
 LOCATION="westeurope"
 
